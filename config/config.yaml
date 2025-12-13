@@ -1,7 +1,7 @@
 # Configuration file for RNA-seq transcriptome quantification workflow
 
 # Sample information file
-samples: "config/samples.tsv"
+samples: "data/fastq/samples.tsv"
 samples_path: "data/fastq"
 read_length: 150 # average read length
 
@@ -75,14 +75,3 @@ featurecounts:
   feature_type: "exon"  # feature type to count (exon, transcript, gene, etc.)
   attribute: "gene_id"  # attribute type in GTF file to be used as feature ID
 
-# Differential expression analysis parameters
-differential_analysis:
-  padj_cutoff: 0.05  # adjusted p-value cutoff for significance
-  lfc_cutoff: 1      # log2 fold change cutoff for significance
-  comparisons:       # define specific comparisons (optional, will auto-detect from conditions if not specified)
-    - "GFP_24h_vs_GFP_48h"
-    - "CYP6A9_24h_vs_CYP6A9_48h"
-    - "GFP_24h_vs_CYP6A9_24h"
-    - "GFP_48h_vs_CYP6A9_48h"
-
-# Additional parameters can be added here as needed

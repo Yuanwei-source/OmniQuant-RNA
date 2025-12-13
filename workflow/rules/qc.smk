@@ -3,8 +3,8 @@
 
 rule raw_reads_fastqc:
     input: 
-        forward_reads = config["samples_path"] + "/{sample}_R1.fastq.gz",
-        reverse_reads = config["samples_path"] + "/{sample}_R2.fastq.gz",
+        forward_reads = get_r1,
+        reverse_reads = get_r2,
     output:
         forward_html = "results/01.raw_qc/{sample}_R1_fastqc.html",
         reverse_html = "results/01.raw_qc/{sample}_R2_fastqc.html",
@@ -27,8 +27,8 @@ rule raw_reads_fastqc:
 
 rule quality_trimming_fastp:
     input: 
-        forward_reads = config["samples_path"] + "/{sample}_R1.fastq.gz",
-        reverse_reads = config["samples_path"] + "/{sample}_R2.fastq.gz",
+        forward_reads = get_r1,
+        reverse_reads = get_r2,
         fastqc_zip = "results/01.raw_qc/{sample}_R1_fastqc.zip"
     output:
         forward_trimmed = "results/02.trimmed_data/{sample}_R1_trimmed.fastq.gz",

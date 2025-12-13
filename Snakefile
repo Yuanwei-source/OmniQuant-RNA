@@ -12,8 +12,17 @@ configfile: "config/config.yaml"
 ALIGNER = config.get("aligner", "hisat2")
 
 # Sample information
-samples_df = pd.read_csv(config["samples"], sep="\t")
+samples_df = pd.read_csv(config["samples"], sep="\t").set_index("sample", drop=False)
 SAMPLES = samples_df["sample"].tolist()
+
+# Functions to get input files from samples.tsv
+def get_r1(wildcards):
+    return samples_df.loc[wildcards.sample, "path"]
+
+def get_r2(wildcards):
+    # Assume R2 file has same name but with R2 instead of R1
+    r1_path = samples_df.loc[wildcards.sample, "path"]
+    return r1_path.replace("_R1", "_R2")
 
 # Define alignment output paths based on selected aligner
 def get_alignment_outputs(samples):

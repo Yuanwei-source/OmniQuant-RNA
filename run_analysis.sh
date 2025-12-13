@@ -13,16 +13,13 @@ if ! command -v snakemake &> /dev/null; then
 fi
 
 # 检查必要文件是否存在
-if [ ! -f "config/samples.tsv" ]; then
-    echo "警告: config/samples.tsv 文件不存在"
-    echo "尝试自动生成样本文件..."
-    if [ -d "data/fastq" ]; then
-        python workflow/scripts/generate_samples.py data/fastq/ -o config/samples.tsv
-        echo "已生成 config/samples.tsv"
-    else
-        echo "错误: 数据目录 data/fastq 不存在，无法生成样本文件"
-        exit 1
-    fi
+if [ ! -f "data/fastq/samples.tsv" ]; then
+    echo "错误: 样本配置文件 data/fastq/samples.tsv 不存在"
+    echo "请执行以下操作之一："
+    echo "1. 手动创建该文件，格式需包含 sample 和 path 两列"
+    echo "2. 运行脚本自动生成（需指定您的数据目录）："
+    echo "   python workflow/scripts/generate_samples.py <您的fastq数据目录> -o data/fastq/samples.tsv"
+    exit 1
 fi
 
 # 创建必要的目录

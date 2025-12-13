@@ -42,11 +42,11 @@ OmniQuant-RNA/
 ├── Snakefile                         # 🐍 主工作流文件
 │
 ├── config/                           # ⚙️  配置文件目录
-│   ├── config.yaml                   #     主配置文件
-│   └── samples.tsv                   #     样本信息表
+│   └── config.yaml                   #     主配置文件
 │
 ├── data/                             # 📊 数据存储目录
 │   ├── fastq/                        #     原始FASTQ文件存放
+│   │   ├── samples.tsv               #     样本信息表
 │   │   ├── {sample}_R1.fastq.gz      #     正向读长文件
 │   │   └── {sample}_R2.fastq.gz      #     反向读长文件
 │   └── reference/                    #     参考文件目录
