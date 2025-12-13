@@ -1,0 +1,9 @@
+name: stringtie
+
+channels:
+  - https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge
+  - https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/bioconda
+  
+dependencies:
+  - stringtie>=2.2
+  - gffcompare>=0.12

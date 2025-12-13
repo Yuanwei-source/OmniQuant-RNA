@@ -1,0 +1,44 @@
+# Snakemake 工作目录
+.snakemake/
+__pycache__/
+
+# 大型数据文件
+/data/
+data/raw/*.fastq.gz
+data/raw/*.fq.gz
+data/reference/*.fa
+data/reference/*.fasta
+data/reference/*.gtf
+data/reference/*.gff
+data/reference/hisat2_index/
+data/fastq/*.gz
+
+# 结果文件 (可选择性忽略)
+results/
+logs/
+benchmarks/
+gene_counts_matrix.tsv
+gene_tpm_matrix.tsv
+transcript_counts_matrix.tsv
+transcript_tpm_matrix.tsv
+gene_counts_matrix_fixed.tsv
+gene_tpm_matrix_fixed.tsv
+gene_id_mapping.tsv
+
+# 临时文件
+*.tmp
+*.temp
+
+# 编辑器文件
+.vscode/
+.idea/
+*~
+*.swp
+*.swo
+
+# OS 文件
+.DS_Store
+Thumbs.db
+
+# Conda 环境
+*.conda/

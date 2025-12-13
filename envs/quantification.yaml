@@ -1,0 +1,10 @@
+name: quantification
+
+channels:
+  - https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge
+  - https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/bioconda
+  
+dependencies:
+  - kallisto>=0.51
+  - salmon>=1.10
+  - gffread>=0.12

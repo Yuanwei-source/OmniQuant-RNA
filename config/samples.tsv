@@ -1,0 +1,7 @@
+sample	path
+CYP6A9-24-1	/home/dell/snakemake/test/Transcriptome_Quantification/data/fastq/CYP6A9-24-1_R1.fastq.gz
+CYP6A9-24-2	/home/dell/snakemake/test/Transcriptome_Quantification/data/fastq/CYP6A9-24-2_R1.fastq.gz
+CYP6A9-48-1	/home/dell/snakemake/test/Transcriptome_Quantification/data/fastq/CYP6A9-48-1_R1.fastq.gz
+GFP-24-1	/home/dell/snakemake/test/Transcriptome_Quantification/data/fastq/GFP-24-1_R1.fastq.gz
+GFP-24-2	/home/dell/snakemake/test/Transcriptome_Quantification/data/fastq/GFP-24-2_R1.fastq.gz
+GFP-48-1	/home/dell/snakemake/test/Transcriptome_Quantification/data/fastq/GFP-48-1_R1.fastq.gz

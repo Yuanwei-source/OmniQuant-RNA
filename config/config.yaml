@@ -1,0 +1,88 @@
+# Configuration file for RNA-seq transcriptome quantification workflow
+
+# Sample information file
+samples: "config/samples.tsv"
+samples_path: "data/fastq"
+read_length: 150 # average read length
+
+# Reference files
+reference:
+  # Path to reference genome FASTA file
+  genome: "data/reference/genome.fasta"
+  # Path to GTF/GFF3 annotation file
+  gff3: "data/reference/genome.gff3"
+  gtf: "data/reference/genome.gtf"  # GTF format annotation (will be converted from GFF3)
+  # Path to transcriptome FASTA file (will be extracted from genome + annotation if not provided)
+  transcriptome: "data/reference/transcriptome.fasta"
+
+# Conda environments
+conda_env:
+  qc: "envs/qc.yaml"
+  alignment: "envs/alignment.yaml"
+  quantification: "envs/quantification.yaml"
+  featurecounts: "envs/featurecounts.yaml"
+  stringtie: "envs/stringtie.yaml"
+
+# Resource configuration
+medium:
+  t: 32  # threads
+  mem_mb: 256000  # memory in MB
+
+# FastQC parameters
+fastqc:
+  memory: 8000  # memory in MB
+
+# Fastp parameters for quality trimming
+fastp:
+  trim_front1: 0
+  trim_front2: 0
+  trim_tail1: 0
+  trim_tail2: 0
+  length_required: 15  # minimum read length
+
+# Alignment method selection
+aligner: "hisat2"  # Choose "hisat2" or "star"
+
+# Hisat2 parameters
+hisat2:
+  library: "unstranded"  # library type, can be "FR", "RF", or "unstranded", default is "unstranded"
+
+# STAR parameters
+star:
+  sjdbOverhang: 149  # read length - 1
+
+# Kallisto parameters
+kallisto:
+  bootstrap: 100
+  extra: "" # removed --bias to avoid segfault
+
+# Salmon parameters (optional)
+salmon:
+  extra: "--validateMappings --gcBias --seqBias"
+
+# STAR parameters (optional)
+star:
+  sjdbOverhang: 149
+
+# StringTie parameters
+stringtie:
+  extra: "-e -B"  # -e: only estimate abundances of given reference transcripts; -B: enable output for Ballgown
+  merge_extra: "-c 0.5 -T 150"  # -c: minimum input transcript coverage; -T: minimum input transcript TPM
+
+# featureCounts parameters
+featurecounts:
+  extra: "-p -B -C"  # -p: paired-end; -B: count multi-mapping reads; -C: do not count reads overlapping with more than one feature
+  feature_type: "exon"  # feature type to count (exon, transcript, gene, etc.)
+  attribute: "gene_id"  # attribute type in GTF file to be used as feature ID
+
+# Differential expression analysis parameters
+differential_analysis:
+  padj_cutoff: 0.05  # adjusted p-value cutoff for significance
+  lfc_cutoff: 1      # log2 fold change cutoff for significance
+  comparisons:       # define specific comparisons (optional, will auto-detect from conditions if not specified)
+    - "GFP_24h_vs_GFP_48h"
+    - "CYP6A9_24h_vs_CYP6A9_48h"
+    - "GFP_24h_vs_CYP6A9_24h"
+    - "GFP_48h_vs_CYP6A9_48h"
+
+# Additional parameters can be added here as needed

@@ -1,0 +1,11 @@
+name: alignment
+
+channels:
+  - https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge
+  - https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/bioconda
+
+dependencies:
+  - hisat2>=2.2
+  - samtools>=1.15
+  - star>=2.7
+  - htslib>=1.15
