@@ -27,19 +27,29 @@ def extract_sample_info(files):
                 break
         
         # Remove read suffix (_R1, _1, etc.)
-        name = re.sub(r'[_.-]?(R?)[12]$', '', name)
+        # Handle .R1.fastq.gz pattern
+        base_name = name
+        if '.R1' in base_name:
+            base_name = base_name.replace('.R1', '')
+        elif '.R2' in base_name:
+            base_name = base_name.replace('.R2', '')
+        else:
+            base_name = re.sub(r'[_.-]?(R?)[12]$', '', base_name)
         
-        # Store absolute path. Prefer R1 if available, or just the first one found.
-        # If we already have this sample, check if the new file is R1 (usually better for "path")
+        if base_name not in samples:
+            samples[base_name] = {'r1': None, 'r2': None}
+            
         abs_path = os.path.abspath(file_path)
         
-        if name not in samples:
-            samples[name] = abs_path
+        # Determine if R1 or R2
+        if '_R1' in filename or '_1.' in filename or filename.endswith('_1') or '.R1.' in filename:
+            samples[base_name]['r1'] = abs_path
+        elif '_R2' in filename or '_2.' in filename or filename.endswith('_2') or '.R2.' in filename:
+            samples[base_name]['r2'] = abs_path
         else:
-            # If current stored path is R2 and new is R1, swap it?
-            # Simple heuristic: if "R1" or "_1" in new path and not in old, update.
-            if ("R1" in abs_path or "_1." in abs_path) and ("R1" not in samples[name] and "_1." not in samples[name]):
-                samples[name] = abs_path
+            # Fallback: if we can't determine, assume R1 if empty
+            if samples[base_name]['r1'] is None:
+                samples[base_name]['r1'] = abs_path
                 
     return samples
 
@@ -79,18 +89,27 @@ Examples:
     output_lines = []
     
     # Header
-    header = ["sample", "path"]
+    header = ["sample", "fq1", "fq2"]
     output_lines.append('\t'.join(header))
     
     # Data rows
     for sample in sorted(samples_dict.keys()):
-        output_lines.append(f"{sample}\t{samples_dict[sample]}")
+        r1 = samples_dict[sample]['r1']
+        r2 = samples_dict[sample]['r2']
+        if r1:
+            line = f"{sample}\t{r1}\t{r2 if r2 else ''}"
+            output_lines.append(line)
     
     # Output
     if args.output:
-        with open(args.output, 'w') as f:
+        output_path = args.output
+        # If output path is an existing directory, append samples.tsv
+        if os.path.isdir(output_path):
+            output_path = os.path.join(output_path, "samples.tsv")
+            
+        with open(output_path, 'w') as f:
             f.write('\n'.join(output_lines) + '\n')
-        print(f"Sample configuration written to {args.output}")
+        print(f"Sample configuration written to {output_path}")
     else:
         for line in output_lines:
             print(line)

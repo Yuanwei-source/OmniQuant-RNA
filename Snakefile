@@ -17,12 +17,10 @@ SAMPLES = samples_df["sample"].tolist()
 
 # Functions to get input files from samples.tsv
 def get_r1(wildcards):
-    return samples_df.loc[wildcards.sample, "path"]
+    return samples_df.loc[wildcards.sample, "fq1"]
 
 def get_r2(wildcards):
-    # Assume R2 file has same name but with R2 instead of R1
-    r1_path = samples_df.loc[wildcards.sample, "path"]
-    return r1_path.replace("_R1", "_R2")
+    return samples_df.loc[wildcards.sample, "fq2"]
 
 # Define alignment output paths based on selected aligner
 def get_alignment_outputs(samples):
