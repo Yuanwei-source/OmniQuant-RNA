@@ -169,7 +169,7 @@ ls -la data/reference/
 
 ```bash
 # 自动生成样本文件(推荐)
-python workflow/scripts/generate_samples.py
+python workflow/scripts/generate_samples.py ./data/fastq/ -o config/samples.tsv
 
 # 或手动编辑
 nano config/samples.tsv

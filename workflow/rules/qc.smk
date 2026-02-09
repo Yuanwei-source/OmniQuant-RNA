@@ -56,10 +56,11 @@ rule quality_trimming_fastp:
                -o {output.forward_trimmed} -O {output.reverse_trimmed} \
                -f {params.trim_front1} -F {params.trim_front2} \
                -t {params.trim_tail1} -T {params.trim_tail2} \
-               -w {threads} -p -c\
+               -w {threads} \
                --detect_adapter_for_pe \
-               --dedup \
                --trim_poly_x \
+               --cut_front \
+               --cut_tail \
                --length_required {params.min_length} \
                -h {output.report_html} \
                -j {output.report_json} >> {log} 2>&1\

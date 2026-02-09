@@ -89,7 +89,7 @@ Examples:
     output_lines = []
     
     # Header
-    header = ["sample", "fq1", "fq2"]
+    header = ["sample", "fq1", "fq2", "group"]
     output_lines.append('\t'.join(header))
     
     # Data rows
@@ -97,7 +97,7 @@ Examples:
         r1 = samples_dict[sample]['r1']
         r2 = samples_dict[sample]['r2']
         if r1:
-            line = f"{sample}\t{r1}\t{r2 if r2 else ''}"
+            line = f"{sample}\t{r1}\t{r2 if r2 else ''}\t"
             output_lines.append(line)
     
     # Output

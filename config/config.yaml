@@ -38,7 +38,7 @@ fastp:
   trim_front2: 0
   trim_tail1: 0
   trim_tail2: 0
-  length_required: 15  # minimum read length
+  length_required: 35  # minimum read length
 
 # Alignment method selection
 aligner: "hisat2"  # Choose "hisat2" or "star"
