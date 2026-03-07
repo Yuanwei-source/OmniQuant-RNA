@@ -36,12 +36,16 @@ snakemake --dry-run
 echo "2. 将要执行的任务:"
 snakemake --dry-run --quiet
 
-# 询问用户是否继续
-read -p "是否继续执行工作流? (y/N): " -n 1 -r
-echo
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo "已取消执行"
-    exit 0
+# 询问用户是否继续 (如果在后台/nohup运行，则自动跳过询问并继续)
+if [ -t 0 ]; then
+    read -p "是否继续执行工作流? (y/N): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "已取消执行"
+        exit 0
+    fi
+else
+    echo "检测到非交互环境(如nohup)，自动继续执行工作流..."
 fi
 
 # 运行工作流
