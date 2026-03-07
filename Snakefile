@@ -48,6 +48,7 @@ include: "workflow/rules/quantification_salmon.smk"
 include: "workflow/rules/quantification_featurecounts.smk"
 include: "workflow/rules/quantification_stringtie.smk"
 include: "workflow/rules/report.smk"
+include: "workflow/rules/dea.smk"
 
 # All target outputs - comprehensive RNA-seq pipeline
 rule all:
@@ -113,6 +114,9 @@ rule all:
         "transcript_counts_matrix.tsv", 
         "gene_tpm_matrix.tsv",
         "transcript_tpm_matrix.tsv",
+        
+        # DEA results
+        expand("results/05.dea/{quantifier}/integration/PCA_plot.pdf", quantifier=["featurecounts", "stringtie", "salmon", "kallisto"]),
         
         # Reports and summaries
         "results/07.reports/multiqc_report.html"

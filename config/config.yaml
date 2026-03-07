@@ -22,6 +22,7 @@ conda_env:
   quantification: "envs/quantification.yaml"
   featurecounts: "envs/featurecounts.yaml"
   stringtie: "envs/stringtie.yaml"
+  dea: "envs/dea.yaml"
 
 # Resource configuration
 medium:
@@ -75,3 +76,14 @@ featurecounts:
   feature_type: "exon"  # feature type to count (exon, transcript, gene, etc.)
   attribute: "gene_id"  # attribute type in GTF file to be used as feature ID
 
+
+# Differential Expression Analysis (DEA) parameters
+dea:
+  methods: ["deseq2", "edger", "limma"]  # 启用哪些方法
+  comparisons: "all"  # 或指定如 ["treatment_vs_control"]
+  batch_column: null  # 如有批次效应，指定列名
+  fdr_threshold: 0.05
+  lfc_threshold: 1.0
+  min_count: 10
+  # For integrated filtering
+  min_methods: 3 # retain genes found by at least this many DEA methods (intersection of 3)

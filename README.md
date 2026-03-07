@@ -105,6 +105,11 @@ OmniQuant-RNA/
 │   │   ├── salmon/                   #     Salmon定量输出
 │   │   ├── featurecounts/            #     featureCounts定量输出
 │   │   └── stringtie/                #     StringTie定量输出
+│   ├── 05.dea/                       #     差异表达分析结果 (新)
+│   │   ├── featurecounts/            #     基于featurecounts的DEA
+│   │   ├── kallisto/                 #     基于kallisto的DEA
+│   │   ├── salmon/                   #     基于salmon的DEA
+│   │   └── stringtie/                #     基于stringtie的DEA
 │   └── 07.reports/                   #     最终报告和汇总
 │
 ├── run_analysis.sh                   # 🚀 完整分析一键运行脚本
@@ -165,32 +170,32 @@ ls -la data/reference/
 
 ### 3. 配置文件设置
 
-#### 编辑样本信息 (`config/samples.tsv`)
+#### 编辑样本信息 (`data/fastq/samples.tsv`)
 
 ```bash
 # 自动生成样本文件(推荐)
-python workflow/scripts/generate_samples.py ./data/fastq/ -o config/samples.tsv
+python workflow/scripts/generate_samples.py ./data/fastq/ -o data/fastq/samples.tsv
 
 # 或手动编辑
-nano config/samples.tsv
+nano data/fastq/samples.tsv
 ```
 
-样本文件格式：
+样本文件格式（需包含双端测序数据路径及DEA分组信息）：
 ```tsv
-sample	path
-Control-1	/path/to/data/Control-1_R1.fastq.gz
-Control-2	/path/to/data/Control-2_R1.fastq.gz
-Control-3	/path/to/data/Control-3_R1.fastq.gz
-Treatment-1	/path/to/data/Treatment-1_R1.fastq.gz
-Treatment-2	/path/to/data/Treatment-2_R1.fastq.gz
-Treatment-3	/path/to/data/Treatment-3_R1.fastq.gz
+sample	fq1	fq2	group
+Control-1	/path/to/data/Control-1_R1.fastq.gz	/path/to/data/Control-1_R2.fastq.gz	Control
+Control-2	/path/to/data/Control-2_R1.fastq.gz	/path/to/data/Control-2_R2.fastq.gz	Control
+Treatment-1	/path/to/data/Treatment-1_R1.fastq.gz	/path/to/data/Treatment-1_R2.fastq.gz	Treatment
+Treatment-2	/path/to/data/Treatment-2_R1.fastq.gz	/path/to/data/Treatment-2_R2.fastq.gz	Treatment
 ```
 
 #### 编辑主配置文件 (`config/config.yaml`)
 
 ```yaml
 # 样本信息文件
-samples: "config/samples.tsv"
+samples: "data/fastq/samples.tsv"
+samples_path: "data/fastq"
+read_length: 150 # average read length
 
 # 参考文件路径配置
 reference:
@@ -200,21 +205,14 @@ reference:
   transcriptome: "data/reference/transcriptome.fasta"
 
 # 计算资源配置
-resources:
-  low:
-    t: 4           # 低强度任务线程数
-    mem_mb: 8000   # 内存限制(MB)
-  medium:
-    t: 16          # 中等强度任务线程数  
-    mem_mb: 32000  # 内存限制(MB)
-  high:
-    t: 32          # 高强度任务线程数
-    mem_mb: 64000  # 内存限制(MB)
+medium:
+  t: 32  # 任务线程数
+  mem_mb: 256000  # 内存限制(MB)
 
 # 工具特定参数
 kallisto:
   bootstrap: 100         # bootstrap次数
-  extra: "--single -l 200 -s 20"  # 额外参数
+  extra: ""
 
 salmon:
   extra: "--validateMappings --gcBias --seqBias"  # 偏置校正参数
@@ -226,7 +224,17 @@ featurecounts:
 
 stringtie:
   extra: "-e -B"         # 基本参数
-  merge_extra: "-c 0 -T 1.0"  # 合并参数
+  merge_extra: "-c 0.5 -T 150"  # 合并参数
+
+# 差异表达分析 (DEA) 参数 (新增)
+dea:
+  methods: ["deseq2", "edger", "limma"]  # 启用哪些方法
+  comparisons: "all"  # 或指定如 ["Treatment_vs_Control"]
+  batch_column: null  # 如有批次效应，指定列名
+  fdr_threshold: 0.05
+  lfc_threshold: 1.0
+  min_count: 10
+  min_methods: 3      # 联合筛选标准的最小通过方法数
 ```
 
 ### 4. 运行分析
@@ -358,10 +366,26 @@ snakemake -s workflow/quantification_featurecounts_only.smk --use-conda --cores 
 snakemake -s workflow/quantification_stringtie_only.smk --use-conda --cores 16
 ```
 
-#### 5. 完整流程模块
+#### 5. 差异表达分析 (DEA) 模块
+```bash
+# 运行差异表达分析流程 (支持 DESeq2, edgeR, limma)
+./run_modular.sh dea --cores 16
+
+# 直接运行 (若已有dea专门的独立smk，可类似下面执行，未单独分离时请通过完整流或指定rule名)
+# 通常通过指定规则运行:
+snakemake run_dea --use-conda --cores 16
+```
+
+**主要步骤**:
+- 读取定量矩阵并格式化
+- 针对选定组进行各种算法的差异表达分析（DESeq2, edgeR, limma等）
+- 整合差异基因结果，获取高置信DEGs并生成可视化图表 (Volcano, Venn, Heatmap, PCA等)
+
+#### 6. 完整流程模块
 ```bash
 # 运行完整分析流程
 ./run_modular.sh all --cores 24
+
 
 # 带详细输出
 ./run_modular.sh all --cores 24 --verbose
@@ -381,7 +405,12 @@ graph TD
     C --> E[salmon]
     C --> F[featurecounts]
     C --> G[stringtie]
-    D --> H[reports]
+    D --> I[dea]
+    E --> I
+    F --> I
+    G --> I
+    I --> H[reports]
+    D --> H
     E --> H
     F --> H
     G --> H
@@ -397,6 +426,7 @@ results/
 ├── 02.trimmed_data/                    # 修剪数据和质控
 ├── 03.alignment/                       # 序列比对结果  
 ├── 04.quantification/                  # 定量分析结果
+├── 05.dea/                             # 差异表达分析结果
 └── 07.reports/                         # 报告和汇总
 ```
 
@@ -539,7 +569,30 @@ stringtie/
 └── stringtie_summary.txt              # StringTie汇总统计
 ```
 
-#### 5. 报告和汇总 (`07.reports/`)
+#### 5. 差异表达分析结果 (`05.dea/`)
+
+```
+05.dea/
+├── {quantification_tool}/              # 取决于上游定量结果 (如 featurecounts)
+│   ├── deseq2.{comp_name}.csv          # DESeq2差异计算结果
+│   ├── edger.{comp_name}.csv           # edgeR差异计算结果
+│   ├── limma.{comp_name}.csv           # limma差异计算结果
+│   ├── normalized_counts.csv           # 归一化后的表达矩阵
+│   └── integration/                    # 整合及可视化分析
+│       ├── Combined_Results_{comp_name}.csv   # 多方法整合结果
+│       ├── DE_genes_{comp_name}_*.csv         # 具体使用的过滤基因
+│       ├── HighConfidence_DEGs_{comp}.txt     # 满足多重交叉验证的高置信基因列表
+│       ├── Volcano_{comp_name}_*.pdf          # 火山图
+│       ├── Venn_{comp_name}.pdf               # 维恩图
+│       ├── Heatmap_{comp_name}.pdf            # 差异基因热图
+│       ├── PCA_plot.pdf                       # 样本主成分分析图
+│       └── Sample_Correlation.pdf             # 样本相关性矩阵图
+```
+
+**HighConfidence_DEGs_{comp}.txt 内容**:
+满足 config 中 `min_methods` 配置个数的各组差显基因标识符。
+
+#### 6. 报告和汇总 (`07.reports/`)
 
 ```
 07.reports/
