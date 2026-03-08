@@ -8,6 +8,39 @@ from snakemake.utils import validate
 # Configuration file
 configfile: "config/config.yaml"
 
+import os
+import subprocess
+
+# Data Sanity Check & Preprocessing: Ensure Reference Fasta has standard IDs (no spaces)
+def preprocess_genome_fasta(fasta_path):
+    if not fasta_path or not os.path.exists(fasta_path):
+        return
+    
+    # Check if there's any fasta header containing spaces
+    try:
+        has_spaces = False
+        with open(fasta_path, 'r') as f:
+            headers_checked = 0
+            for line in f:
+                if line.startswith('>'):
+                    if ' ' in line:
+                        has_spaces = True
+                        break
+                    headers_checked += 1
+                    if headers_checked > 10:  # Check up to 10 headers
+                        break
+        
+        if has_spaces:
+            print(f"\n[OmniQuant-RNA Info] Reformatting sequence IDs in {fasta_path} (removing spaces and descriptions) to avoid downstream errors with Salmon/FeatureCounts...")
+            tmp_path = fasta_path + ".tmp"
+            subprocess.run(f"awk '{{print $1}}' {fasta_path} > {tmp_path} && mv {tmp_path} {fasta_path}", shell=True, check=True)
+            print("[OmniQuant-RNA Info] Genome FASTA headers cleaned successfully!\n")
+    except Exception as e:
+        print(f"Warning: Failed to check or format genome fasta: {e}")
+
+preprocess_genome_fasta(config.get("reference", {}).get("genome", ""))
+
+
 # Get selected aligner from config
 ALIGNER = config.get("aligner", "hisat2")
 
