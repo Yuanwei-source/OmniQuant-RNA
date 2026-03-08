@@ -19,7 +19,7 @@ rule salmon_index:
         """
         mkdir -p {output}
         
-        grep '^>' {input.genome} | sed 's/>//' > {output}/decoys.txt
+        grep '^>' {input.genome} | cut -d ' ' -f 1 | sed 's/>//' > {output}/decoys.txt
 
         cat {input.transcriptome} {input.genome} > {output}/gentrome.fa
 
