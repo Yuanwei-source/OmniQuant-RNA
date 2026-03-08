@@ -105,9 +105,16 @@ if (quant_method == "featurecounts") {
   } else {
      # Build from GTF
      cat("Building tx2gene from GTF...\n")
-     txdb <- makeTxDbFromGFF(gtf_file, format="gtf")
-     k <- keys(txdb, keytype = "TXNAME")
-     tx2gene <- select(txdb, k, "GENEID", "TXNAME")
+     gr <- rtracklayer::import(gtf_file)
+     gr_tx <- gr[gr$type %in% c("exon", "transcript", "mRNA", "rRNA", "tRNA")]
+     
+     tx_col <- ifelse("transcript_id" %in% colnames(mcols(gr_tx)), "transcript_id", "ID")
+     gene_col <- ifelse("gene_id" %in% colnames(mcols(gr_tx)), "gene_id", ifelse("Parent" %in% colnames(mcols(gr_tx)), "Parent", tx_col))
+     
+     df <- as.data.frame(mcols(gr_tx))
+     tx2gene <- unique(df[, c(tx_col, gene_col)])
+     tx2gene <- tx2gene[!is.na(tx2gene[[tx_col]]) & !is.na(tx2gene[[gene_col]]), ]
+     colnames(tx2gene) <- c("TXNAME", "GENEID")
   }
   
   type <- ifelse(quant_method == "salmon", "salmon", "kallisto")
