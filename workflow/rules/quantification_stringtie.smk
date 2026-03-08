@@ -175,10 +175,10 @@ rule aggregate_stringtie_original:
         abundance_files=expand("results/04.quantification/stringtie/{sample}/final/gene_abundances.tab", sample=SAMPLES),
         gene_mapping="results/04.quantification/stringtie/gene_id_mapping.tsv"
     output:
-        gene_counts="gene_counts_matrix.tsv",
-        transcript_counts="transcript_counts_matrix.tsv",
-        gene_tpm="gene_tpm_matrix.tsv",
-        transcript_tpm="transcript_tpm_matrix.tsv"
+        gene_counts="results/04.quantification/stringtie/gene_counts_matrix.tsv",
+        transcript_counts="results/04.quantification/stringtie/transcript_counts_matrix.tsv",
+        gene_tpm="results/04.quantification/stringtie/gene_tpm_matrix.tsv",
+        transcript_tpm="results/04.quantification/stringtie/transcript_tpm_matrix.tsv"
     conda:
         "../../envs/qc.yaml"
     params:

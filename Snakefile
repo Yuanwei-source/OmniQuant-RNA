@@ -199,10 +199,10 @@ rule all:
         "results/04.quantification/stringtie/all_samples_transcript_fpkm_matrix.txt",
         
         # StringTie results with original gene IDs (for downstream analysis)
-        "gene_counts_matrix.tsv",
-        "transcript_counts_matrix.tsv", 
-        "gene_tpm_matrix.tsv",
-        "transcript_tpm_matrix.tsv",
+        "results/04.quantification/stringtie/gene_counts_matrix.tsv",
+        "results/04.quantification/stringtie/transcript_counts_matrix.tsv", 
+        "results/04.quantification/stringtie/gene_tpm_matrix.tsv",
+        "results/04.quantification/stringtie/transcript_tpm_matrix.tsv",
         
         # DEA results
         expand("results/05.differential_expression/{quantifier}/integration/PCA_plot.pdf", quantifier=["featurecounts", "stringtie", "salmon", "kallisto"]),
@@ -225,8 +225,8 @@ rule stringtie_only:
         expand("results/04.quantification/stringtie/{sample}/final/transcripts.gtf", sample=SAMPLES),
         expand("results/04.quantification/stringtie/{sample}/final/gene_abundances.tab", sample=SAMPLES),
         "results/04.quantification/stringtie/gene_id_mapping.tsv",
-        "gene_counts_matrix.tsv",
-        "gene_tpm_matrix.tsv"
+        "results/04.quantification/stringtie/gene_counts_matrix.tsv",
+        "results/04.quantification/stringtie/gene_tpm_matrix.tsv"
 
 rule alignment_only:
     """Run quality control and alignment only"""
