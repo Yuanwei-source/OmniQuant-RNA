@@ -223,7 +223,9 @@ salmon:
 featurecounts:
   extra: "-p -B -C"      # 双端测序参数
   feature_type: "exon"    # 特征类型
-  attribute: "gene_id"    # 属性标识
+  attribute: "auto"       # 基因层级属性，自动识别 gene_id/gene_name/Parent
+  transcript_attribute: "auto"  # 转录本层级属性，自动识别 transcript_id/ID/Parent
+  exon_attribute: "auto"  # exon 层级属性，自动识别 exon_id/ID/Parent/gene_id/transcript_id
 
 stringtie:
   extra: "-e -B"         # 基本参数

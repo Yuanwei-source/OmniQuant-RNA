@@ -74,7 +74,9 @@ stringtie:
 featurecounts:
   extra: "-p -B -C"  # -p: paired-end; -B: count multi-mapping reads; -C: do not count reads overlapping with more than one feature
   feature_type: "exon"  # feature type to count (exon, transcript, gene, etc.)
-  attribute: "gene_id"  # attribute type in GTF file to be used as feature ID
+  attribute: "auto"  # gene-level feature ID; use auto to detect gene_id/gene_name/Parent
+  transcript_attribute: "auto"  # transcript-level feature ID; use auto to detect transcript_id/ID/Parent
+  exon_attribute: "auto"  # exon-level feature ID; use auto to detect exon_id/ID/Parent/gene_id/transcript_id
 
 
 # Differential Expression Analysis (DEA) parameters
