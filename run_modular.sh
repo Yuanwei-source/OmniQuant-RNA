@@ -73,19 +73,19 @@ case $MODULE in
         ;;
     qc)
         echo "运行质量控制模块..."
-        snakemake -s workflow/qc_only.smk $CONDA_ARGS --cores $CORES --printshellcmds
+        snakemake -s workflow/modular_workflows/qc_only.smk $CONDA_ARGS --cores $CORES --printshellcmds
         ;;
     quantification)
         echo "运行转录组定量模块..."
-        snakemake -s workflow/quantification_only.smk $CONDA_ARGS --cores $CORES --printshellcmds
+        snakemake -s workflow/modular_workflows/quantification_only.smk $CONDA_ARGS --cores $CORES --printshellcmds
         ;;
     differential_expression|dea)
         echo "运行差异表达分析模块..."
-        snakemake -s workflow/differential_expression_only.smk $CONDA_ARGS --cores $CORES --printshellcmds
+        snakemake -s workflow/modular_workflows/differential_expression_only.smk $CONDA_ARGS --cores $CORES --printshellcmds
         ;;
     alignment)
         echo "运行序列比对模块..."
-        snakemake -s workflow/alignment_only.smk $CONDA_ARGS --cores $CORES --printshellcmds
+        snakemake -s workflow/modular_workflows/alignment_only.smk $CONDA_ARGS --cores $CORES --printshellcmds
         ;;
     dry-run)
         echo "检查工作流（干运行）..."
@@ -93,9 +93,9 @@ case $MODULE in
         echo ""
         echo "各模块检查:"
         echo "- QC模块:"
-        snakemake -s workflow/qc_only.smk --dry-run
+        snakemake -s workflow/modular_workflows/qc_only.smk --dry-run
         echo "- 定量模块:"
-        snakemake -s workflow/quantification_only.smk --dry-run
+        snakemake -s workflow/modular_workflows/quantification_only.smk --dry-run
         ;;
 esac
 

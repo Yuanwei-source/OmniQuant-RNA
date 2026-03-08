@@ -4,7 +4,7 @@ import subprocess
 import sys
 
 # Configuration file
-configfile: "config/config.yaml"
+configfile: "../../config/config.yaml"
 
 # Sample information
 samples_df = pd.read_csv(config["samples"], sep="\t").set_index("sample", drop=False)
@@ -71,9 +71,11 @@ preprocess_genome_fasta(config.get("reference", {}).get("genome", ""))
 # Get selected aligner from config
 ALIGNER = config.get("aligner", "hisat2")
 
-include: "rules/qc.smk"
+include: "../rules/alignment.smk"
 
-rule all_qc:
+rule all_alignment:
     input:
-        expand("results/fastqc/{sample}_{read}_fastqc.html", sample=SAMPLES, read=["R1", "R2"]),
-        expand("results/fastqc/{sample}_{read}_fastqc.zip", sample=SAMPLES, read=["R1", "R2"])
+        # HISAT2 results
+        expand("results/aligned/hisat2/{sample}.bam", sample=SAMPLES),
+        # STAR results (optional)
+        # expand("results/aligned/star/{sample}Aligned.sortedByCoord.out.bam", sample=SAMPLES)

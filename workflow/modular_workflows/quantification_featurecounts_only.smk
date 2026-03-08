@@ -4,7 +4,7 @@ import subprocess
 import sys
 
 # Configuration file
-configfile: "config/config.yaml"
+configfile: "../../config/config.yaml"
 
 # Sample information
 samples_df = pd.read_csv(config["samples"], sep="\t").set_index("sample", drop=False)
@@ -71,8 +71,15 @@ preprocess_genome_fasta(config.get("reference", {}).get("genome", ""))
 # Get selected aligner from config
 ALIGNER = config.get("aligner", "hisat2")
 
-include: "rules/differential_expression.smk"
+include: "../rules/quantification_featurecounts.smk"
 
-rule all_differential_expression:
+rule all:
     input:
-        rules.dea_all.input
+        # Individual sample counts
+        expand("results/quantification/featurecounts/{sample}/counts.txt", sample=samples),
+        expand("results/quantification/featurecounts/{sample}/transcript_counts.txt", sample=samples),
+        expand("results/quantification/featurecounts/{sample}/exon_counts.txt", sample=samples),
+        # Combined count matrix
+        "results/quantification/featurecounts/all_samples/counts_matrix.txt",
+        # Compatibility outputs
+        expand("results/quantification/{sample}/featurecounts.txt", sample=samples)

@@ -4,7 +4,7 @@ import subprocess
 import sys
 
 # Configuration file
-configfile: "config/config.yaml"
+configfile: "../../config/config.yaml"
 
 # Sample information
 samples_df = pd.read_csv(config["samples"], sep="\t").set_index("sample", drop=False)
@@ -71,16 +71,9 @@ preprocess_genome_fasta(config.get("reference", {}).get("genome", ""))
 # Get selected aligner from config
 ALIGNER = config.get("aligner", "hisat2")
 
-include: "rules/quantification_featurecounts.smk"
-include: "rules/quantification_stringtie.smk"
-include: "rules/quantification_kallisto.smk"
-include: "rules/quantification_salmon.smk"
+include: "../rules/qc.smk"
 
-rule all_quantification:
+rule all_qc:
     input:
-        # Kallisto results
-        expand("results/quantification/kallisto/{sample}/abundance.tsv", sample=SAMPLES),
-        # Salmon results  
-        expand("results/quantification/salmon/{sample}/quant.sf", sample=SAMPLES),
-        # Compatibility symlinks
-        expand("results/quantification/{sample}/abundance.tsv", sample=SAMPLES)
+        expand("results/fastqc/{sample}_{read}_fastqc.html", sample=SAMPLES, read=["R1", "R2"]),
+        expand("results/fastqc/{sample}_{read}_fastqc.zip", sample=SAMPLES, read=["R1", "R2"])
