@@ -1,3 +1,48 @@
+import os
+import gzip
+
+def detect_gtf_attribute(gtf_path, target_type="gene"):
+    if not os.path.exists(gtf_path):
+        return "gene_id" if target_type == "gene" else "transcript_id"
+    
+    # Check what attributes exist in the GTF
+    attrs = {"gene_id": 0, "gene_name": 0, "gene": 0, "Parent": 0, "transcript_id": 0, "ID": 0}
+    open_func = gzip.open if gtf_path.endswith(".gz") else open
+    
+    try:
+        with open_func(gtf_path, "rt") as f:
+            lines_checked = 0
+            for line in f:
+                if line.startswith("#"): continue
+                parts = line.strip().split("\t")
+                if len(parts) < 9: continue
+                
+                # For featureCounts -g, we usually look at exon rows for gene_id
+                if parts[2] != "exon" and parts[2] != "transcript" and parts[2] != "gene": continue
+                
+                attr_str = parts[8]
+                for k in attrs.keys():
+                    if f"{k} " in attr_str or f"{k}=" in attr_str:
+                        attrs[k] += 1
+                
+                lines_checked += 1
+                if lines_checked >= 500:
+                    break
+    except Exception:
+        pass
+    
+    if target_type == "gene":
+        if attrs["gene_id"] > 0: return "gene_id"
+        if attrs["gene_name"] > 0: return "gene_name"
+        if attrs["Parent"] > 0: return "Parent"
+        if attrs["gene"] > 0: return "gene"
+        return "gene_id"
+    else:
+        if attrs["transcript_id"] > 0: return "transcript_id"
+        if attrs["ID"] > 0: return "ID"
+        if attrs["Parent"] > 0: return "Parent"
+        return "transcript_id"
+
 # Quantification Rules
 # Gene quantification using featureCounts
 
@@ -16,7 +61,7 @@ rule featurecounts_single:
     params:
         extra=config.get("featurecounts", {}).get("extra", "-p -B -C"),
         feature_type=config.get("featurecounts", {}).get("feature_type", "exon"),
-        attribute=config.get("featurecounts", {}).get("attribute", "gene_id")
+        attribute=detect_gtf_attribute(config["reference"]["gtf"], "gene")
     log:
         "logs/featurecounts/{sample}.log"
     threads: 8
@@ -47,7 +92,7 @@ rule featurecounts_all:
     params:
         extra=config.get("featurecounts", {}).get("extra", "-p -B -C"),
         feature_type=config.get("featurecounts", {}).get("feature_type", "exon"),
-        attribute=config.get("featurecounts", {}).get("attribute", "gene_id")
+        attribute=detect_gtf_attribute(config["reference"]["gtf"], "gene")
     log:
         "logs/featurecounts/all_samples.log"
     threads: 12
@@ -78,7 +123,7 @@ rule featurecounts_transcript:
     params:
         extra=config.get("featurecounts", {}).get("extra", "-p -B -C"),
         feature_type="transcript",
-        attribute="transcript_id"
+        attribute=detect_gtf_attribute(config["reference"]["gtf"], "transcript")
     log:
         "logs/featurecounts/{sample}_transcript.log"
     threads: 8
