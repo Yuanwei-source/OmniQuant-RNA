@@ -64,7 +64,7 @@ def preprocess_genome_fasta(fasta_path):
                 if i > 50: break
         if has_spaces:
             tmp_path = fasta_path + ".tmp"
-            subprocess.run(f"awk '{{print $1}}' {fasta_path} > {tmp_path} && mv {tmp_path} {fasta_path}", shell=True, check=True)
+            subprocess.run(f"awk '{{print $1}}' {fasta_path} > {tmp_path} && mv {tmp_path} {fasta_path} && rm -f {fasta_path}.fai", shell=True, check=True)
     except: pass
 preprocess_genome_fasta(config.get("reference", {}).get("genome", ""))
 

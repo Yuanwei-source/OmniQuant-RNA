@@ -89,7 +89,7 @@ def preprocess_genome_fasta(fasta_path):
         if has_spaces:
             print(f"\n[OmniQuant-RNA Info] Reformatting sequence IDs in {fasta_path} (removing spaces and descriptions) to avoid downstream errors with Salmon/FeatureCounts...")
             tmp_path = fasta_path + ".tmp"
-            subprocess.run(f"awk '{{print $1}}' {fasta_path} > {tmp_path} && mv {tmp_path} {fasta_path}", shell=True, check=True)
+            subprocess.run(f"awk '{{print $1}}' {fasta_path} > {tmp_path} && mv {tmp_path} {fasta_path} && rm -f {fasta_path}.fai", shell=True, check=True)
             print("[OmniQuant-RNA Info] Genome FASTA headers cleaned successfully!\n")
     except Exception as e:
         print(f"Warning: Failed to check or format genome fasta: {e}")
