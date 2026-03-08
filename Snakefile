@@ -149,7 +149,7 @@ rule all:
         "transcript_tpm_matrix.tsv",
         
         # DEA results
-        expand("results/05.dea/{quantifier}/integration/PCA_plot.pdf", quantifier=["featurecounts", "stringtie", "salmon", "kallisto"]),
+        expand("results/05.differential_expression/{quantifier}/integration/PCA_plot.pdf", quantifier=["featurecounts", "stringtie", "salmon", "kallisto"]),
         
         # Reports and summaries
         "results/07.reports/multiqc_report.html"

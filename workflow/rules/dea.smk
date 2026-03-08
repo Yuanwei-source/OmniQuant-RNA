@@ -21,9 +21,9 @@ rule run_dea:
         counts = get_dea_input,
         gtf = config["reference"]["gtf"]
     output:
-        outdir = directory("results/05.dea/{quantifier}"),
-        rds = "results/05.dea/{quantifier}/dea_session.rds",
-        norm_counts = "results/05.dea/{quantifier}/normalized_counts.csv"
+        outdir = directory("results/05.differential_expression/{quantifier}"),
+        rds = "results/05.differential_expression/{quantifier}/dea_session.rds",
+        norm_counts = "results/05.differential_expression/{quantifier}/normalized_counts.csv"
     conda:
         "../../envs/dea.yaml"
     params:
@@ -38,10 +38,10 @@ rule integrate_dea:
     Integrate and visualize DEA results for a specific quantifier
     """
     input:
-        rds = "results/05.dea/{quantifier}/dea_session.rds"
+        rds = "results/05.differential_expression/{quantifier}/dea_session.rds"
     output:
-        outdir = directory("results/05.dea/{quantifier}/integration"),
-        pca = "results/05.dea/{quantifier}/integration/PCA_plot.pdf"
+        outdir = directory("results/05.differential_expression/{quantifier}/integration"),
+        pca = "results/05.differential_expression/{quantifier}/integration/PCA_plot.pdf"
     conda:
         "../../envs/dea.yaml"
     log:
@@ -54,5 +54,5 @@ rule dea_all:
     Run DEA for all configured methods
     """
     input:
-        expand("results/05.dea/{quantifier}/integration/PCA_plot.pdf", 
+        expand("results/05.differential_expression/{quantifier}/integration/PCA_plot.pdf", 
                quantifier=["featurecounts", "stringtie", "salmon", "kallisto"])

@@ -105,7 +105,7 @@ OmniQuant-RNA/
 │   │   ├── salmon/                   #     Salmon定量输出
 │   │   ├── featurecounts/            #     featureCounts定量输出
 │   │   └── stringtie/                #     StringTie定量输出
-│   ├── 05.dea/                       #     差异表达分析结果 (新)
+│   ├── 05.differential_expression/                       #     差异表达分析结果 (新)
 │   │   ├── featurecounts/            #     基于featurecounts的DEA
 │   │   ├── kallisto/                 #     基于kallisto的DEA
 │   │   ├── salmon/                   #     基于salmon的DEA
@@ -426,7 +426,7 @@ results/
 ├── 02.trimmed_data/                    # 修剪数据和质控
 ├── 03.alignment/                       # 序列比对结果  
 ├── 04.quantification/                  # 定量分析结果
-├── 05.dea/                             # 差异表达分析结果
+├── 05.differential_expression/                             # 差异表达分析结果
 └── 07.reports/                         # 报告和汇总
 ```
 
@@ -569,10 +569,10 @@ stringtie/
 └── stringtie_summary.txt              # StringTie汇总统计
 ```
 
-#### 5. 差异表达分析结果 (`05.dea/`)
+#### 5. 差异表达分析结果 (`05.differential_expression/`)
 
 ```
-05.dea/
+05.differential_expression/
 ├── {quantification_tool}/              # 取决于上游定量结果 (如 featurecounts)
 │   ├── deseq2.{comp_name}.csv          # DESeq2差异计算结果
 │   ├── edger.{comp_name}.csv           # edgeR差异计算结果
