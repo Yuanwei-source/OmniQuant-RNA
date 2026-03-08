@@ -11,6 +11,62 @@ configfile: "config/config.yaml"
 import os
 import subprocess
 
+import sys
+
+# Auto-detect Reference Files: user can drop arbitrary named .fasta or .gff3 into data/reference
+def auto_detect_references():
+    ref_dir = "data/reference"
+    if not os.path.exists(ref_dir):
+        return
+
+    # 1. Detect Genome FASTA
+    if config["reference"]["genome"] == "data/reference/genome.fasta":
+        fasta_files = [f for f in os.listdir(ref_dir) if f.endswith(('.fa', '.fasta', '.fna')) 
+                       and f not in ['genome.fasta', 'transcriptome.fasta'] 
+                       and not f.endswith('.tmp') and not f.endswith('.clean')]
+        
+        target_fasta = os.path.join(ref_dir, "genome.fasta")
+        
+        if len(fasta_files) == 1:
+            source = fasta_files[0]
+            source_path = os.path.join(ref_dir, source)
+            if os.path.islink(target_fasta):
+                os.unlink(target_fasta)
+            if not os.path.exists(target_fasta):
+                os.symlink(source, target_fasta)
+                print(f"\n[OmniQuant-RNA Info] Auto-detected genome FASTA: symlinked '{source}' to 'genome.fasta'")
+        elif len(fasta_files) > 1:
+            print(f"\n[OmniQuant-RNA Error] Multiple FASTA files found in {ref_dir}: {fasta_files}.")
+            print("Please keep only ONE reference genome file, or specify the exact name in config/config.yaml.\n")
+            sys.exit(1)
+
+    # 2. Detect Annotation GFF/GTF
+    if config["reference"]["gff3"] in ["data/reference/genome.gff3", "data/reference/genome.gtf"]:
+        anno_files = [f for f in os.listdir(ref_dir) if f.endswith(('.gff', '.gff3', '.gtf')) 
+                      and f not in ['genome.gff3', 'genome.gtf', 'annotation.gtf', 'annotation.gff3']
+                      and not f.startswith('genome_converted')]
+                      
+        if len(anno_files) == 1:
+            source = anno_files[0]
+            source_path = os.path.join(ref_dir, source)
+            target_name = "genome.gtf" if source.endswith('.gtf') else "genome.gff3"
+            target_path = os.path.join(ref_dir, target_name)
+            
+            if os.path.islink(target_path):
+                os.unlink(target_path)
+            if not os.path.exists(target_path):
+                os.symlink(source, target_path)
+                print(f"[OmniQuant-RNA Info] Auto-detected annotation file: symlinked '{source}' to '{target_name}'\n")
+            
+            # Dynamically update config so the workflow knows the correct starting format
+            config["reference"]["gff3"] = target_path
+        elif len(anno_files) > 1:
+            print(f"\n[OmniQuant-RNA Error] Multiple annotation files found in {ref_dir}: {anno_files}.")
+            print("Please keep only ONE annotation file, or specify the exact name in config/config.yaml.\n")
+            sys.exit(1)
+
+auto_detect_references()
+
 # Data Sanity Check & Preprocessing: Ensure Reference Fasta has standard IDs (no spaces)
 def preprocess_genome_fasta(fasta_path):
     if not fasta_path or not os.path.exists(fasta_path):
