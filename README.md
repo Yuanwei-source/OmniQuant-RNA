@@ -223,9 +223,9 @@ salmon:
 featurecounts:
   extra: "-p -B -C"      # 双端测序参数
   feature_type: "exon"    # 特征类型
-  attribute: "auto"       # 基因层级属性，自动识别 gene_id/gene_name/Parent
-  transcript_attribute: "auto"  # 转录本层级属性，自动识别 transcript_id/ID/Parent
-  exon_attribute: "auto"  # exon 层级属性，自动识别 exon_id/ID/Parent/gene_id/transcript_id
+  attribute: "auto"       # 基因ID自动识别
+  transcript_attribute: "auto"  # 转录本ID自动识别
+  exon_attribute: "auto"  # exon ID自动识别
 
 stringtie:
   extra: "-e -B"         # 基本参数
@@ -364,6 +364,8 @@ snakemake -s workflow/quantification_salmon_only.smk --use-conda --cores 16
 ./run_modular.sh featurecounts --cores 12
 snakemake -s workflow/quantification_featurecounts_only.smk --use-conda --cores 12
 ```
+
+默认使用 `auto` 自动识别注释属性，常见的 `gene_id`、`gene_name`、`Parent`、`ID` 都可兼容。
 
 **StringTie定量**:
 ```bash
@@ -542,6 +544,8 @@ transcript2     2000    1850.23         4.15    156.23
 ```
 
 ##### featureCounts结果 (`featurecounts/`)
+
+默认输出为基因层级计数；当启用转录本或 exon 计数时，会在对应样本子目录下额外生成结果文件。
 
 ```
 featurecounts/
