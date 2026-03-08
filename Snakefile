@@ -183,6 +183,8 @@ rule all:
         "results/04.quantification/salmon/all_samples_gene_tpm_matrix.txt",
         
         # featureCounts quantification
+        "data/reference/genome.featurecounts.gtf",
+        "data/reference/genome.featurecounts.summary.tsv",
         expand("results/04.quantification/featurecounts/{sample}/counts.txt", sample=SAMPLES),
         "results/04.quantification/featurecounts/all_samples_counts.txt",
         "results/04.quantification/featurecounts/all_samples_counts_matrix.txt",
@@ -256,6 +258,8 @@ rule quantification_salmon_only:
 rule quantification_featurecounts_only:
     """Run featureCounts quantification only"""
     input:
+        "data/reference/genome.featurecounts.gtf",
+        "data/reference/genome.featurecounts.summary.tsv",
         expand("results/04.quantification/featurecounts/{sample}/counts.txt", sample=SAMPLES),
         "results/04.quantification/featurecounts/all_samples_counts.txt",
         "results/04.quantification/featurecounts/all_samples_counts_matrix.txt"

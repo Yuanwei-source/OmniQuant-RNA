@@ -1,6 +1,13 @@
 import os
 import gzip
 
+FEATURECOUNTS_CONFIG = config.get("featurecounts", {})
+FEATURECOUNTS_GTF = FEATURECOUNTS_CONFIG.get("normalized_gtf", "data/reference/genome.featurecounts.gtf")
+FEATURECOUNTS_GTF_SUMMARY = FEATURECOUNTS_CONFIG.get(
+    "normalized_gtf_summary",
+    "data/reference/genome.featurecounts.summary.tsv"
+)
+
 def parse_annotation_attributes(attr_str):
     attrs = {}
     for raw_field in attr_str.strip().strip(";").split(";"):
@@ -76,26 +83,48 @@ def resolve_featurecounts_attribute(config_value, gtf_path, target_type):
     return detect_gtf_attribute(gtf_path, target_type)
 
 GTF_PATH = config.get("reference", {}).get("gtf", "")
-FEATURECOUNTS_CONFIG = config.get("featurecounts", {})
+
+FC_GTF_PATH = FEATURECOUNTS_GTF if os.path.exists(FEATURECOUNTS_GTF) else GTF_PATH
 
 FC_GENE = resolve_featurecounts_attribute(
     FEATURECOUNTS_CONFIG.get("attribute", "auto"),
-    GTF_PATH,
+    FC_GTF_PATH,
     "gene"
 )
 FC_TRANSCRIPT = resolve_featurecounts_attribute(
     FEATURECOUNTS_CONFIG.get("transcript_attribute", "auto"),
-    GTF_PATH,
+    FC_GTF_PATH,
     "transcript"
 )
 FC_EXON = resolve_featurecounts_attribute(
     FEATURECOUNTS_CONFIG.get("exon_attribute", "auto"),
-    GTF_PATH,
+    FC_GTF_PATH,
     "exon"
 )
 
 # Quantification Rules
 # Gene quantification using featureCounts
+
+rule normalize_featurecounts_annotation:
+    """
+    Normalize GTF attributes for featureCounts compatibility
+    """
+    input:
+        gtf=config["reference"]["gtf"]
+    output:
+        gtf=FEATURECOUNTS_GTF,
+        summary=FEATURECOUNTS_GTF_SUMMARY
+    conda:
+        "../../envs/qc.yaml"
+    log:
+        "logs/featurecounts/normalize_annotation.log"
+    shell:
+        """
+        python workflow/scripts/normalize_featurecounts_gtf.py \
+            --input {input.gtf} \
+            --output {output.gtf} \
+            --summary {output.summary} > {log} 2>&1
+        """
 
 rule featurecounts_single:
     """
@@ -103,7 +132,8 @@ rule featurecounts_single:
     """
     input:
         bam="results/03.alignment/{sample}.bam",
-        gtf=config["reference"]["gtf"]
+        gtf=FEATURECOUNTS_GTF,
+        summary=FEATURECOUNTS_GTF_SUMMARY
     output:
         counts="results/04.quantification/featurecounts/{sample}/counts.txt",
         summary="results/04.quantification/featurecounts/{sample}/counts.txt.summary"
@@ -134,7 +164,8 @@ rule featurecounts_all:
     """
     input:
         bams=expand("results/03.alignment/{sample}.bam", sample=SAMPLES),
-        gtf=config["reference"]["gtf"]
+        gtf=FEATURECOUNTS_GTF,
+        summary=FEATURECOUNTS_GTF_SUMMARY
     output:
         counts="results/04.quantification/featurecounts/all_samples/counts_matrix.txt",
         summary="results/04.quantification/featurecounts/all_samples/counts_matrix.txt.summary"
@@ -165,7 +196,8 @@ rule featurecounts_transcript:
     """
     input:
         bam="results/03.alignment/{sample}.bam",
-        gtf=config["reference"]["gtf"]
+        gtf=FEATURECOUNTS_GTF,
+        summary=FEATURECOUNTS_GTF_SUMMARY
     output:
         counts="results/04.quantification/featurecounts/{sample}/transcript_counts.txt",
         summary="results/04.quantification/featurecounts/{sample}/transcript_counts.txt.summary"
@@ -196,7 +228,8 @@ rule featurecounts_exon:
     """
     input:
         bam="results/03.alignment/{sample}.bam",
-        gtf=config["reference"]["gtf"]
+        gtf=FEATURECOUNTS_GTF,
+        summary=FEATURECOUNTS_GTF_SUMMARY
     output:
         counts="results/04.quantification/featurecounts/{sample}/exon_counts.txt",
         summary="results/04.quantification/featurecounts/{sample}/exon_counts.txt.summary"

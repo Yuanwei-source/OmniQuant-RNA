@@ -226,6 +226,8 @@ featurecounts:
   attribute: "auto"       # 基因ID自动识别
   transcript_attribute: "auto"  # 转录本ID自动识别
   exon_attribute: "auto"  # exon ID自动识别
+  normalized_gtf: "data/reference/genome.featurecounts.gtf"  # 自动生成 featureCounts 专用注释
+  normalized_gtf_summary: "data/reference/genome.featurecounts.summary.tsv"  # 规范化汇总
 
 stringtie:
   extra: "-e -B"         # 基本参数
@@ -366,6 +368,8 @@ snakemake -s workflow/quantification_featurecounts_only.smk --use-conda --cores 
 ```
 
 默认使用 `auto` 自动识别注释属性，常见的 `gene_id`、`gene_name`、`Parent`、`ID` 都可兼容。
+
+运行前会自动生成 [data/reference/genome.featurecounts.gtf](data/reference/genome.featurecounts.gtf) 作为 featureCounts 专用注释，并输出规范化汇总到 [data/reference/genome.featurecounts.summary.tsv](data/reference/genome.featurecounts.summary.tsv)。
 
 **StringTie定量**:
 ```bash
