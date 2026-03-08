@@ -16,6 +16,11 @@
 - **MultiQC**: 整合式质控报告，一站式查看所有QC结果
 - **比对统计**: 详细的比对率和覆盖度分析
 
+### 🤖 **高度智能化适配**
+- **自适应参考文件**: 将任意命名的基因组 (.fasta) 或注释文件 (.gtf/.gff3) 丢入参考目录，自动扫描并接管。
+- **自动格式清洗**: 运行前自动扫描并清洗导致兼容性崩溃的长空格 Fasta 序列头，拒绝各种报错。
+- **后台脱机运行**: 智能识别非交互式 `nohup` 环境，无需用户按键确认即可自动跑通全程。
+
 ### 🔄 **智能注释处理**
 - **自动格式检测**: 智能识别GFF3/GTF格式
 - **双向转换**: 支持GFF3 ⇌ GTF无损转换
@@ -157,13 +162,11 @@ mkdir -p data/fastq data/reference logs results
 # 将原始FASTQ文件放入指定目录
 cp /path/to/your/*.fastq.gz data/fastq/
 
-# 准备参考基因组和注释文件
-cp /path/to/genome.fasta data/reference/
-cp /path/to/annotation.gff3 data/reference/genome.gff3
-# 或者 
-cp /path/to/annotation.gtf data/reference/genome.gtf
+# 准备参考基因组和注释文件 (支持任意原始命名，系统自动识别挂载，一键接入！)
+cp /path/to/NCBI_download/GCF_000001405.39_GRCh38_genomic.fna data/reference/
+cp /path/to/Ensembl_download/Homo_sapiens.GRCh38.109.gtf data/reference/
 
-# 验证文件完整性
+# 验证文件完整性（请确保 data/reference 内只存在一对基因组和注释文件即可）
 ls -la data/fastq/
 ls -la data/reference/
 ```
@@ -248,7 +251,7 @@ dea:
 # 方法2: 直接使用Snakemake
 snakemake --use-conda --cores 16 --rerun-incomplete
 
-# 方法3: 后台运行(适合长时间任务)
+# 方法3: 后台运行(适合长时间任务，脚本已进行环境自适应，运行且不会被输入打断)
 nohup ./run_analysis.sh > analysis.log 2>&1 &
 ```
 
