@@ -29,7 +29,7 @@ rule run_dea:
     params:
         sample_file = config["samples"]
     log:
-        "logs/dea/{quantifier}_run.log"
+        "logs/differential_expression/{quantifier}_run.log"
     script:
         "../scripts/run_dea.R"
 
@@ -45,7 +45,7 @@ rule integrate_dea:
     conda:
         "../../envs/dea.yaml"
     log:
-        "logs/dea/{quantifier}_integrate.log"
+        "logs/differential_expression/{quantifier}_integrate.log"
     script:
         "../scripts/integrate_results.R"
 

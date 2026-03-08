@@ -81,7 +81,7 @@ include: "workflow/rules/quantification_salmon.smk"
 include: "workflow/rules/quantification_featurecounts.smk"
 include: "workflow/rules/quantification_stringtie.smk"
 include: "workflow/rules/report.smk"
-include: "workflow/rules/dea.smk"
+include: "workflow/rules/differential_expression.smk"
 
 # All target outputs - comprehensive RNA-seq pipeline
 rule all:
