@@ -61,7 +61,7 @@ rule featurecounts_single:
     params:
         extra=config.get("featurecounts", {}).get("extra", "-p -B -C"),
         feature_type=config.get("featurecounts", {}).get("feature_type", "exon"),
-        attribute=detect_gtf_attribute(config["reference"]["gtf"], "gene")
+        attribute=lambda wildcards, input: detect_gtf_attribute(input.gtf, "gene")
     log:
         "logs/featurecounts/{sample}.log"
     threads: 8
@@ -92,7 +92,7 @@ rule featurecounts_all:
     params:
         extra=config.get("featurecounts", {}).get("extra", "-p -B -C"),
         feature_type=config.get("featurecounts", {}).get("feature_type", "exon"),
-        attribute=detect_gtf_attribute(config["reference"]["gtf"], "gene")
+        attribute=lambda wildcards, input: detect_gtf_attribute(input.gtf, "gene")
     log:
         "logs/featurecounts/all_samples.log"
     threads: 12
@@ -123,7 +123,7 @@ rule featurecounts_transcript:
     params:
         extra=config.get("featurecounts", {}).get("extra", "-p -B -C"),
         feature_type="transcript",
-        attribute=detect_gtf_attribute(config["reference"]["gtf"], "transcript")
+        attribute=lambda wildcards, input: detect_gtf_attribute(input.gtf, "transcript")
     log:
         "logs/featurecounts/{sample}_transcript.log"
     threads: 8
