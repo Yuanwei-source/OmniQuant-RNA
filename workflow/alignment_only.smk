@@ -73,3 +73,9 @@ ALIGNER = config.get("aligner", "hisat2")
 
 include: "rules/alignment.smk"
 
+rule all_alignment:
+    input:
+        # HISAT2 results
+        expand("results/aligned/hisat2/{sample}.bam", sample=SAMPLES),
+        # STAR results (optional)
+        # expand("results/aligned/star/{sample}Aligned.sortedByCoord.out.bam", sample=SAMPLES)

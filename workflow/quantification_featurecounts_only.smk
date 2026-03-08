@@ -73,3 +73,13 @@ ALIGNER = config.get("aligner", "hisat2")
 
 include: "rules/quantification_featurecounts.smk"
 
+rule all:
+    input:
+        # Individual sample counts
+        expand("results/quantification/featurecounts/{sample}/counts.txt", sample=samples),
+        expand("results/quantification/featurecounts/{sample}/transcript_counts.txt", sample=samples),
+        expand("results/quantification/featurecounts/{sample}/exon_counts.txt", sample=samples),
+        # Combined count matrix
+        "results/quantification/featurecounts/all_samples/counts_matrix.txt",
+        # Compatibility outputs
+        expand("results/quantification/{sample}/featurecounts.txt", sample=samples)

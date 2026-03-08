@@ -73,3 +73,13 @@ ALIGNER = config.get("aligner", "hisat2")
 
 include: "rules/quantification_stringtie.smk"
 
+rule all:
+    input:
+        # StringTie outputs
+        expand("results/quantification/stringtie/{sample}/transcripts.gtf", sample=samples),
+        expand("results/quantification/stringtie/{sample}/gene_abundances.tab", sample=samples),
+        "results/quantification/stringtie/merged.gtf",
+        expand("results/quantification/stringtie/{sample}/final_transcripts.gtf", sample=samples),
+        expand("results/quantification/stringtie/{sample}/final_gene_abundances.tab", sample=samples),
+        # Compatibility outputs
+        expand("results/quantification/{sample}/stringtie_abundances.tab", sample=samples)

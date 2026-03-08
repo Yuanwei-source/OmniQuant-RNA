@@ -76,3 +76,11 @@ include: "rules/quantification_stringtie.smk"
 include: "rules/quantification_kallisto.smk"
 include: "rules/quantification_salmon.smk"
 
+rule all_quantification:
+    input:
+        # Kallisto results
+        expand("results/quantification/kallisto/{sample}/abundance.tsv", sample=SAMPLES),
+        # Salmon results  
+        expand("results/quantification/salmon/{sample}/quant.sf", sample=SAMPLES),
+        # Compatibility symlinks
+        expand("results/quantification/{sample}/abundance.tsv", sample=SAMPLES)

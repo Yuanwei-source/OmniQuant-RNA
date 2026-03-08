@@ -1,4 +1,7 @@
-import pandas as pd
+import glob
+import os
+
+base_include = """import pandas as pd
 import os
 import subprocess
 import sys
@@ -7,7 +10,7 @@ import sys
 configfile: "config/config.yaml"
 
 # Sample information
-samples_df = pd.read_csv(config["samples"], sep="\t").set_index("sample", drop=False)
+samples_df = pd.read_csv(config["samples"], sep="\\t").set_index("sample", drop=False)
 SAMPLES = samples_df["sample"].tolist()
 
 # Functions to get input files from samples.tsv
@@ -34,7 +37,7 @@ def auto_detect_references():
             if os.path.islink(target_fasta): os.unlink(target_fasta)
             if not os.path.exists(target_fasta):
                 os.symlink(source, target_fasta)
-                print(f"\n[OmniQuant-RNA] Auto-detected: symlinked '{source}' to 'genome.fasta'")
+                print(f"\\n[OmniQuant-RNA] Auto-detected: symlinked '{source}' to 'genome.fasta'")
 
     # 2. Detect Annotation GFF/GTF
     if config["reference"]["gff3"] in ["data/reference/genome.gff3", "data/reference/genome.gtf"]:
@@ -70,12 +73,54 @@ preprocess_genome_fasta(config.get("reference", {}).get("genome", ""))
 
 # Get selected aligner from config
 ALIGNER = config.get("aligner", "hisat2")
+"""
 
-include: "rules/quantification_kallisto.smk"
+smk_files = glob.glob("workflow/*_only.smk")
 
-rule all_kallisto:
+for file in smk_files:
+    with open(file, 'r') as f:
+        content = f.read()
+    
+    rule_section = ""
+    lines = content.split('\n')
+    for i, line in enumerate(lines):
+        if line.startswith("rule "):
+            rule_section = "\n".join(lines[i:])
+            break
+            
+    if "qc_only" in file:
+        include_section = 'include: "rules/qc.smk"\n'
+    elif "alignment_only" in file:
+        include_section = 'include: "rules/alignment.smk"\n'
+    elif "quantification_only" in file:
+        include_section = 'include: "rules/quantification_featurecounts.smk"\ninclude: "rules/quantification_stringtie.smk"\ninclude: "rules/quantification_kallisto.smk"\ninclude: "rules/quantification_salmon.smk"\n'
+    elif "conversion_only" in file:
+        include_section = 'include: "rules/annotation_conversion.smk"\n'
+    elif "featurecounts_only" in file:
+         include_section = 'include: "rules/quantification_featurecounts.smk"\n'
+    elif "salmon_only" in file:
+         include_section = 'include: "rules/quantification_salmon.smk"\n'
+    elif "stringtie_only" in file:
+         include_section = 'include: "rules/quantification_stringtie.smk"\n'
+    elif "kallisto_only" in file:
+         include_section = 'include: "rules/quantification_kallisto.smk"\n'
+    else:
+        include_section = "\n"
+
+    new_content = base_include + "\n" + include_section + "\n" + rule_section
+    
+    with open(file, 'w') as f:
+        f.write(new_content)
+
+# Additionally generate differential_expression_only.smk
+dea_content = base_include + """
+include: "rules/differential_expression.smk"
+
+rule all_differential_expression:
     input:
-        # Kallisto results
-        expand("results/quantification/kallisto/{sample}/abundance.tsv", sample=SAMPLES),
-        # Compatibility symlinks
-        expand("results/quantification/{sample}/abundance.tsv", sample=SAMPLES)
+        rules.dea_all.input
+"""
+with open("workflow/differential_expression_only.smk", "w") as f:
+    f.write(dea_content)
+
+print("Done generating and patching files.")

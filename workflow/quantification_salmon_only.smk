@@ -73,3 +73,9 @@ ALIGNER = config.get("aligner", "hisat2")
 
 include: "rules/quantification_salmon.smk"
 
+rule all_salmon:
+    input:
+        # Salmon results  
+        expand("results/quantification/salmon/{sample}/quant.sf", sample=SAMPLES),
+        # Compatibility symlinks
+        expand("results/quantification/{sample}/quant.sf", sample=SAMPLES)

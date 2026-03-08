@@ -73,3 +73,7 @@ ALIGNER = config.get("aligner", "hisat2")
 
 include: "rules/qc.smk"
 
+rule all_qc:
+    input:
+        expand("results/fastqc/{sample}_{read}_fastqc.html", sample=SAMPLES, read=["R1", "R2"]),
+        expand("results/fastqc/{sample}_{read}_fastqc.zip", sample=SAMPLES, read=["R1", "R2"])

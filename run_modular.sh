@@ -18,6 +18,7 @@ show_usage() {
     echo "  qc            - 只运行质量控制"
     echo "  quantification- 只运行转录组定量"
     echo "  alignment     - 只运行序列比对"
+    echo "  differential_expression - 只运行差异表达分析 (简写: dea)"
     echo "  dry-run       - 检查工作流（干运行）"
     echo ""
     echo "选项:"
@@ -42,7 +43,7 @@ while [[ $# -gt 0 ]]; do
             show_usage
             exit 0
             ;;
-        all|qc|quantification|alignment|dry-run)
+        all|qc|quantification|alignment|differential_expression|dea|dry-run)
             MODULE="$1"
             shift
             ;;
@@ -77,6 +78,10 @@ case $MODULE in
     quantification)
         echo "运行转录组定量模块..."
         snakemake -s workflow/quantification_only.smk $CONDA_ARGS --cores $CORES --printshellcmds
+        ;;
+    differential_expression|dea)
+        echo "运行差异表达分析模块..."
+        snakemake -s workflow/differential_expression_only.smk $CONDA_ARGS --cores $CORES --printshellcmds
         ;;
     alignment)
         echo "运行序列比对模块..."
