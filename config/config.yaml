@@ -80,6 +80,46 @@ featurecounts:
   normalized_gtf: "data/reference/genome.featurecounts.gtf"  # auto-generated featureCounts-compatible annotation
   normalized_gtf_summary: "data/reference/genome.featurecounts.summary.tsv"  # normalization summary report
 
+# Unified reference namespace for tximport-based quantifiers
+namespace:
+  output_dir: "results/00.reference"
+  tx2gene_reference: "results/00.reference/tx2gene_reference.tsv"
+  stringtie_bridge: "results/00.reference/stringtie_tx2gene_bridge.tsv"
+  tx2gene_master: "results/00.reference/tx2gene_master.tsv"
+  gene_namespace: "results/00.reference/gene_namespace.tsv"
+  import_manifest_dir: "results/00.reference/import_manifests"
+
+dea_import:
+  main_only: true
+  mapping_policy: "conservative"
+  novel_policy: "discovery_only"
+
+consensus:
+  enabled: true
+  methods: ["deseq2"]
+  quantifiers: ["featurecounts", "stringtie", "salmon", "kallisto"]
+  contrasts: ["Treatment1_vs_Control1"]
+  p_clip: 1.0e-16
+  tiers:
+    tier_a:
+      min_support: 4
+      min_sign_consistency: 4
+      max_rra_fdr: 0.05
+      max_cct_fdr: 0.05
+      max_logfc_cv: 1.0
+    tier_b:
+      min_support: 3
+      min_sign_consistency: 3
+      max_rra_fdr: 0.10
+      max_cct_fdr: 0.10
+      max_logfc_cv: 1.25
+    tier_c:
+      min_support: 2
+      min_sign_consistency: 2
+      max_rra_fdr: 0.25
+      max_cct_fdr: 0.25
+      max_logfc_cv: 1.50
+
 
 # Differential Expression Analysis (DEA) parameters
 dea:

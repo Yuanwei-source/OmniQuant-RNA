@@ -20,5 +20,6 @@ dependencies:
   - r-pheatmap
   - r-ggrepel
   - r-venndiagram
+  - r-robustrankaggreg
   - r-argparse
   - r-rcolorbrewer

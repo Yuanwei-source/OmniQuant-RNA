@@ -1,6 +1,9 @@
 # Quantification Rules
 # Transcript quantification using StringTie
 
+STRINGTIE_SNAPSHOT_DIR = "results/tables/raw_matrices/stringtie"
+STRINGTIE_QC_SNAPSHOT_DIR = "results/tables/qc_snapshots/stringtie"
+
 rule stringtie_assemble:
     """
     Assemble transcripts and quantify gene/transcript expression using StringTie
@@ -114,7 +117,7 @@ rule create_gene_mapping:
     input:
         merged_gtf="results/04.quantification/stringtie/merged.gtf"
     output:
-        mapping="results/04.quantification/stringtie/gene_id_mapping.tsv"
+        mapping=f"{STRINGTIE_QC_SNAPSHOT_DIR}/gene_id_mapping.tsv"
     conda:
         "../../envs/qc.yaml"
     log:
@@ -129,19 +132,19 @@ rule create_gene_mapping:
 
 rule aggregate_stringtie_summary:
     """
-    Aggregate StringTie results across all samples with gene ID mapping
+    Aggregate StringTie results across all samples with gene ID mapping as snapshot matrices
     """
     input:
         gtf_files=expand("results/04.quantification/stringtie/{sample}/final/transcripts.gtf", sample=SAMPLES),
         abundance_files=expand("results/04.quantification/stringtie/{sample}/final/gene_abundances.tab", sample=SAMPLES),
-        gene_mapping="results/04.quantification/stringtie/gene_id_mapping.tsv"
+        gene_mapping=f"{STRINGTIE_QC_SNAPSHOT_DIR}/gene_id_mapping.tsv"
     output:
-        gene_counts="results/04.quantification/stringtie/all_samples_gene_counts_matrix.txt",
-        transcript_counts="results/04.quantification/stringtie/all_samples_transcript_counts_matrix.txt",
-        gene_tpm="results/04.quantification/stringtie/all_samples_gene_tpm_matrix.txt",
-        transcript_tpm="results/04.quantification/stringtie/all_samples_transcript_tpm_matrix.txt",
-        gene_fpkm="results/04.quantification/stringtie/all_samples_gene_fpkm_matrix.txt",
-        transcript_fpkm="results/04.quantification/stringtie/all_samples_transcript_fpkm_matrix.txt"
+        gene_counts=f"{STRINGTIE_SNAPSHOT_DIR}/all_samples_gene_counts_matrix.txt",
+        transcript_counts=f"{STRINGTIE_SNAPSHOT_DIR}/all_samples_transcript_counts_matrix.txt",
+        gene_tpm=f"{STRINGTIE_SNAPSHOT_DIR}/all_samples_gene_tpm_matrix.txt",
+        transcript_tpm=f"{STRINGTIE_SNAPSHOT_DIR}/all_samples_transcript_tpm_matrix.txt",
+        gene_fpkm=f"{STRINGTIE_SNAPSHOT_DIR}/all_samples_gene_fpkm_matrix.txt",
+        transcript_fpkm=f"{STRINGTIE_SNAPSHOT_DIR}/all_samples_transcript_fpkm_matrix.txt"
     conda:
         "../../envs/qc.yaml"
     params:
@@ -168,17 +171,17 @@ rule aggregate_stringtie_summary:
 
 rule aggregate_stringtie_original:
     """
-    Generate matrices with original gene IDs (for comparison)
+    Generate snapshot matrices with original gene IDs (for comparison)
     """
     input:
         gtf_files=expand("results/04.quantification/stringtie/{sample}/final/transcripts.gtf", sample=SAMPLES),
         abundance_files=expand("results/04.quantification/stringtie/{sample}/final/gene_abundances.tab", sample=SAMPLES),
-        gene_mapping="results/04.quantification/stringtie/gene_id_mapping.tsv"
+        gene_mapping=f"{STRINGTIE_QC_SNAPSHOT_DIR}/gene_id_mapping.tsv"
     output:
-        gene_counts="results/04.quantification/stringtie/gene_counts_matrix.tsv",
-        transcript_counts="results/04.quantification/stringtie/transcript_counts_matrix.tsv",
-        gene_tpm="results/04.quantification/stringtie/gene_tpm_matrix.tsv",
-        transcript_tpm="results/04.quantification/stringtie/transcript_tpm_matrix.tsv"
+        gene_counts=f"{STRINGTIE_SNAPSHOT_DIR}/gene_counts_matrix.tsv",
+        transcript_counts=f"{STRINGTIE_SNAPSHOT_DIR}/transcript_counts_matrix.tsv",
+        gene_tpm=f"{STRINGTIE_SNAPSHOT_DIR}/gene_tpm_matrix.tsv",
+        transcript_tpm=f"{STRINGTIE_SNAPSHOT_DIR}/transcript_tpm_matrix.tsv"
     conda:
         "../../envs/qc.yaml"
     params:

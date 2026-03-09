@@ -42,9 +42,13 @@ for (contrast in contrasts) {
   for (method in methods) {
     res_name <- paste(method, contrast, sep=".")
     df <- results_list[[res_name]]
+
+    if ("included_in_main" %in% colnames(df)) {
+      df <- df %>% filter(included_in_main)
+    }
     
     # Filter DE
-    # Note: different column names handled in run_dea.R (logFC, P.Value, adj.P.Val)
+    # Note: different column names handled in perform_quantifier_dea.R (logFC, P.Value, adj.P.Val)
     # Handle NAs in P-values or logFC by treating them as not DE
     df <- df %>% 
       mutate(is_de = coalesce(adj.P.Val < fdr_th & abs(logFC) > lfc_th, FALSE))
@@ -87,7 +91,8 @@ for (contrast in contrasts) {
      venn.plot <- venn.diagram(
         x = de_genes_list,
         filename = NULL,
-        fill = brewer.pal(length(methods), "Pastel1")
+        fill = brewer.pal(length(methods), "Pastel1"),
+        disable.logging = TRUE
      )
      grid.draw(venn.plot)
      dev.off()

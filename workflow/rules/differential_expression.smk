@@ -1,42 +1,61 @@
 # Differential Expression Analysis Rules
 
+DEA_IMPORT_CONFIG = config.get("dea_import", {})
+
 # Helper function to get inputs based on quantifier
-def get_dea_input(wildcards):
+def get_dea_primary_input(wildcards):
     if wildcards.quantifier == "featurecounts":
         return "results/04.quantification/featurecounts/all_samples/counts_matrix.txt"
     elif wildcards.quantifier == "stringtie":
-        return "results/04.quantification/stringtie/all_samples_gene_counts_matrix.txt"
+        return STRINGTIE_MANIFEST
     elif wildcards.quantifier == "salmon":
-        return expand("results/04.quantification/salmon/{sample}/quant.sf", sample=SAMPLES)
+        return SALMON_MANIFEST
     elif wildcards.quantifier == "kallisto":
-        return expand("results/04.quantification/kallisto/{sample}/abundance.tsv", sample=SAMPLES)
+        return KALLISTO_MANIFEST
     else:
         raise ValueError(f"Unknown quantifier: {wildcards.quantifier}")
+
+
+def get_dea_input_mode(wildcards):
+    if wildcards.quantifier == "featurecounts":
+        return "gene_counts_matrix"
+    return f"tximport_{wildcards.quantifier}"
 
 rule run_dea:
     """
     Run Differential Expression Analysis for a specific quantifier
     """
+    wildcard_constraints:
+        quantifier = "[^/]+"
     input:
-        counts = get_dea_input,
-        gtf = config["reference"]["gtf"]
+        primary = get_dea_primary_input,
+        sample_file = config["samples"],
+        tx2gene_master = TX2GENE_MASTER,
+        gene_namespace = GENE_NAMESPACE
     output:
         outdir = directory("results/05.differential_expression/{quantifier}"),
         rds = "results/05.differential_expression/{quantifier}/dea_session.rds",
-        norm_counts = "results/05.differential_expression/{quantifier}/normalized_counts.csv"
+        norm_counts = "results/05.differential_expression/{quantifier}/normalized_counts.csv",
+        import_summary = "results/05.differential_expression/{quantifier}/import_summary.tsv"
     conda:
         "../../envs/dea.yaml"
     params:
-        sample_file = config["samples"]
+        input_mode = get_dea_input_mode,
+        read_length = config.get("read_length", 150),
+        main_only = DEA_IMPORT_CONFIG.get("main_only", True),
+        mapping_policy = DEA_IMPORT_CONFIG.get("mapping_policy", "conservative"),
+        novel_policy = DEA_IMPORT_CONFIG.get("novel_policy", "discovery_only")
     log:
         "logs/differential_expression/{quantifier}_run.log"
     script:
-        "../scripts/run_dea.R"
+        "../scripts/perform_quantifier_dea.R"
 
 rule integrate_dea:
     """
     Integrate and visualize DEA results for a specific quantifier
     """
+    wildcard_constraints:
+        quantifier = "[^/]+"
     input:
         rds = "results/05.differential_expression/{quantifier}/dea_session.rds"
     output:
