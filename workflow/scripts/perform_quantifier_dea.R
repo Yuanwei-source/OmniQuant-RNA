@@ -41,7 +41,11 @@ as_flag <- function(x) {
 }
 
 load_samples <- function(sample_file) {
-  samples <- read_tsv(sample_file, show_col_types = FALSE) %>% as.data.frame()
+  samples <- read_tsv(
+    sample_file,
+    col_types = cols(.default = col_character()),
+    show_col_types = FALSE
+  ) %>% as.data.frame()
   if ("group" %in% colnames(samples)) {
     samples$group <- as.factor(samples$group)
   }
@@ -82,6 +86,21 @@ build_pairs <- function(groups, comparisons) {
     stop("No valid comparisons could be constructed from configuration.")
   }
   pairs
+}
+
+build_group_name_map <- function(groups) {
+  original_groups <- as.character(groups)
+  safe_groups <- make.names(original_groups)
+
+  if (anyDuplicated(safe_groups)) {
+    duplicated_safe <- unique(safe_groups[duplicated(safe_groups)])
+    stop(
+      "Group names become ambiguous after make.names(): ",
+      paste(duplicated_safe, collapse = ", ")
+    )
+  }
+
+  stats::setNames(safe_groups, original_groups)
 }
 
 load_gene_namespace <- function(namespace_path) {
@@ -362,6 +381,7 @@ write_tsv(
 results_list <- list()
 groups <- as.character(unique(samples[[group_col]]))
 pairs <- build_pairs(groups, config_dea$comparisons)
+group_name_map <- build_group_name_map(groups)
 
 format_res <- function(res, method, contrast_name) {
   annotate_result(
@@ -402,8 +422,13 @@ if ("deseq2" %in% config_dea$methods) {
 # 2. edgeR
 if ("edger" %in% config_dea$methods) {
   cat("Running edgeR...\n")
-  design_0 <- model.matrix(as.formula(paste0("~ 0 + ", group_col)), data = samples)
-  colnames(design_0) <- gsub(group_col, "", colnames(design_0))
+  edge_samples <- samples
+  edge_samples$group_safe <- factor(
+    unname(group_name_map[as.character(samples[[group_col]])]),
+    levels = unname(group_name_map[groups])
+  )
+  design_0 <- model.matrix(~ 0 + group_safe, data = edge_samples)
+  colnames(design_0) <- levels(edge_samples$group_safe)
 
   if (!is.null(imported$txi_raw)) {
     y <- build_tximport_edgeR(imported$txi_raw)
@@ -418,7 +443,8 @@ if ("edger" %in% config_dea$methods) {
 
   for (p in pairs) {
     contrast_name <- paste0(p[1], "_vs_", p[2])
-    contrast_vec <- makeContrasts(contrasts = paste0(p[1], "-", p[2]), levels = design_0)
+    safe_pair <- unname(group_name_map[p])
+    contrast_vec <- makeContrasts(contrasts = paste0(safe_pair[1], "-", safe_pair[2]), levels = design_0)
     res <- glmQLFTest(fit_0, contrast = contrast_vec)
     res_tab <- topTags(res, n = Inf)$table
     res_df <- annotate_result(
@@ -438,8 +464,13 @@ if ("edger" %in% config_dea$methods) {
 # 3. limma-voom
 if ("limma" %in% config_dea$methods) {
   cat("Running limma-voom...\n")
-  design_0 <- model.matrix(as.formula(paste0("~ 0 + ", group_col)), data = samples)
-  colnames(design_0) <- gsub(group_col, "", colnames(design_0))
+  limma_samples <- samples
+  limma_samples$group_safe <- factor(
+    unname(group_name_map[as.character(samples[[group_col]])]),
+    levels = unname(group_name_map[groups])
+  )
+  design_0 <- model.matrix(~ 0 + group_safe, data = limma_samples)
+  colnames(design_0) <- levels(limma_samples$group_safe)
 
   limma_counts <- if (!is.null(imported$txi_scaled)) round(imported$txi_scaled$counts[rownames(counts_matrix), common_samples, drop = FALSE]) else counts_matrix
   dge <- DGEList(counts = limma_counts)
@@ -451,7 +482,8 @@ if ("limma" %in% config_dea$methods) {
 
   for (p in pairs) {
     contrast_name <- paste0(p[1], "_vs_", p[2])
-    contrast_vec <- makeContrasts(contrasts = paste0(p[1], "-", p[2]), levels = design_0)
+    safe_pair <- unname(group_name_map[p])
+    contrast_vec <- makeContrasts(contrasts = paste0(safe_pair[1], "-", safe_pair[2]), levels = design_0)
     fit2 <- contrasts.fit(fit, contrast_vec)
     fit2 <- eBayes(fit2)
     res_tab <- topTable(fit2, number = Inf)

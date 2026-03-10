@@ -43,8 +43,9 @@ def auto_detect_references():
     # 2. Detect Annotation GFF/GTF
     if config["reference"]["gff3"] in ["data/reference/genome.gff3", "data/reference/genome.gtf"]:
         anno_files = [f for f in os.listdir(ref_dir) if f.endswith(('.gff', '.gff3', '.gtf')) 
-                      and f not in ['genome.gff3', 'genome.gtf', 'annotation.gtf', 'annotation.gff3']
-                      and not f.startswith('genome_converted')]
+                  and f not in ['genome.gff3', 'genome.gtf', 'annotation.gtf', 'annotation.gff3']
+                  and not f.startswith('genome_converted')
+                  and not f.endswith('.featurecounts.gtf')]
                       
         if len(anno_files) == 1:
             source = anno_files[0]

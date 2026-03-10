@@ -23,7 +23,7 @@ CONSENSUS_CONTRASTS = build_consensus_contrasts()
 
 def get_consensus_inputs(wildcards):
     return {
-        quantifier: f"results/05.differential_expression/{quantifier}/{CONSENSUS_METHOD}.{wildcards.contrast}.csv"
+        quantifier: f"results/05.differential_expression/{quantifier}"
         for quantifier in CONSENSUS_QUANTIFIERS
     }
 

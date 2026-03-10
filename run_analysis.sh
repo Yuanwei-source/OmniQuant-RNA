@@ -1,5 +1,9 @@
 #!/bin/bash
 
+if [ -z "${BASH_VERSION:-}" ]; then
+    exec bash "$0" "$@"
+fi
+
 # OmniQuant-RNA - 运行脚本
 # 使用方法: ./run_analysis.sh
 

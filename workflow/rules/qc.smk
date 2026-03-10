@@ -23,6 +23,20 @@ rule raw_reads_fastqc:
     shell:
         """
         fastqc -q -t {threads} --memory {resources.mem_mb} -o {params.output_dir} {input.forward_reads} {input.reverse_reads} >> {log} 2>&1
+
+        forward_base=$(basename "{input.forward_reads}")
+        forward_base=${{forward_base%.gz}}
+        forward_base=${{forward_base%.fastq}}
+        forward_base=${{forward_base%.fq}}
+        reverse_base=$(basename "{input.reverse_reads}")
+        reverse_base=${{reverse_base%.gz}}
+        reverse_base=${{reverse_base%.fastq}}
+        reverse_base=${{reverse_base%.fq}}
+
+        mv "{params.output_dir}/${{forward_base}}_fastqc.html" "{output.forward_html}"
+        mv "{params.output_dir}/${{forward_base}}_fastqc.zip" "{output.forward_zip}"
+        mv "{params.output_dir}/${{reverse_base}}_fastqc.html" "{output.reverse_html}"
+        mv "{params.output_dir}/${{reverse_base}}_fastqc.zip" "{output.reverse_zip}"
         """
 
 rule quality_trimming_fastp:

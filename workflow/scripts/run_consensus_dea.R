@@ -289,6 +289,14 @@ load_quantifier_result <- function(path, quantifier, method, contrast) {
     select("gene_id_standard", "gene_name", "logFC", "P.Value", "adj.P.Val", "quantifier")
 }
 
+resolve_quantifier_result_path <- function(directory_path, method, contrast) {
+  file_path <- file.path(directory_path, paste0(method, ".", contrast, ".csv"))
+  if (!file.exists(file_path)) {
+    stop("Missing DEA contrast file: ", file_path)
+  }
+  file_path
+}
+
 plot_scatter <- function(consensus_df, output_path, contrast) {
   x_col <- "logFC__featurecounts"
   y_col <- "logFC__salmon"
@@ -435,7 +443,8 @@ dir.create(dirname(output_table), recursive = TRUE, showWarnings = FALSE)
 cat("Loading consensus inputs for contrast:", contrast, "\n")
 cat("Consensus input quantifiers:", paste(names(input_paths), collapse = ", "), "\n")
 data_list <- lapply(names(input_paths), function(quantifier) {
-  load_quantifier_result(input_paths[[quantifier]], quantifier, method, contrast)
+  contrast_path <- resolve_quantifier_result_path(input_paths[[quantifier]], method, contrast)
+  load_quantifier_result(contrast_path, quantifier, method, contrast)
 })
 names(data_list) <- names(input_paths)
 
