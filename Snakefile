@@ -221,9 +221,14 @@ rule all:
         expand("results/05.differential_expression/{quantifier}/integration/PCA_plot.pdf", quantifier=["featurecounts", "stringtie", "salmon", "kallisto"]),
 
         # Consensus DEA results
-        expand("results/06.consensus_expression/{contrast}/consensus_results.tsv", contrast=config.get("consensus", {}).get("contrasts", [])),
-        expand("results/06.consensus_expression/{contrast}/consensus_summary.tsv", contrast=config.get("consensus", {}).get("contrasts", [])),
-        expand("results/06.consensus_expression/{contrast}/logFC_scatter_salmon_vs_featurecounts.pdf", contrast=config.get("consensus", {}).get("contrasts", [])),
+        expand("results/06.consensus_expression/{contrast}/consensus_results.tsv", contrast=CONSENSUS_CONTRASTS),
+        expand("results/06.consensus_expression/{contrast}/consensus_summary.tsv", contrast=CONSENSUS_CONTRASTS),
+        expand("results/06.consensus_expression/{contrast}/tier_diagnostics.tsv", contrast=CONSENSUS_CONTRASTS),
+        expand("results/06.consensus_expression/{contrast}/significance_membership.tsv", contrast=CONSENSUS_CONTRASTS),
+        expand("results/06.consensus_expression/{contrast}/sensitivity_analysis.tsv", contrast=CONSENSUS_CONTRASTS),
+        expand("results/06.consensus_expression/{contrast}/logFC_scatter_salmon_vs_featurecounts.pdf", contrast=CONSENSUS_CONTRASTS),
+        expand("results/06.consensus_expression/{contrast}/consensus_volcano.pdf", contrast=CONSENSUS_CONTRASTS),
+        expand("results/06.consensus_expression/{contrast}/significance_upset.pdf", contrast=CONSENSUS_CONTRASTS),
         
         # Reports and summaries
         "results/07.reports/multiqc_report.html"
@@ -274,7 +279,7 @@ rule quantification_salmon_only:
 rule consensus_only:
     """Run configured consensus DEA contrasts only"""
     input:
-        expand("results/06.consensus_expression/{contrast}/consensus_results.tsv", contrast=config.get("consensus", {}).get("contrasts", []))
+        expand("results/06.consensus_expression/{contrast}/consensus_results.tsv", contrast=CONSENSUS_CONTRASTS)
 
 rule quantification_featurecounts_only:
     """Run featureCounts quantification only"""

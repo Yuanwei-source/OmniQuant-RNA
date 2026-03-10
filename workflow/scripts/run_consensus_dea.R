@@ -11,6 +11,7 @@ suppressPackageStartupMessages({
   library(tibble)
   library(ggplot2)
   library(RobustRankAggreg)
+  library(UpSetR)
 })
 
 invisible(utils::globalVariables(c(
@@ -236,6 +237,40 @@ assign_tier <- function(support_n, sign_consistency_n, best_rra_fdr, best_cct_fd
   "unclassified"
 }
 
+list_failures <- function(support_n, sign_consistency_n, best_rra_fdr, best_cct_fdr, logfc_cv, tier_cfg) {
+  failures <- c()
+  if (support_n < tier_cfg$min_support) failures <- c(failures, "support")
+  if (sign_consistency_n < tier_cfg$min_sign_consistency) failures <- c(failures, "sign_consistency")
+  if (best_rra_fdr > tier_cfg$max_rra_fdr) failures <- c(failures, "rra_fdr")
+  if (best_cct_fdr > tier_cfg$max_cct_fdr) failures <- c(failures, "cct_fdr")
+  if (!is.na(logfc_cv) && logfc_cv > tier_cfg$max_logfc_cv) failures <- c(failures, "logFC_CV")
+  if (length(failures) == 0) "pass" else paste(failures, collapse = ";")
+}
+
+classify_tier_with_override <- function(support_n, sign_consistency_n, best_rra_fdr, best_cct_fdr, logfc_cv, tiers,
+                                        tier_b_support = NULL, ignore_cv = FALSE, ignore_cct = FALSE, ignore_rra = FALSE) {
+  tiers_local <- tiers
+  if (!is.null(tier_b_support)) {
+    tiers_local$tier_b$min_support <- tier_b_support
+  }
+  if (ignore_cv) {
+    tiers_local$tier_a$max_logfc_cv <- Inf
+    tiers_local$tier_b$max_logfc_cv <- Inf
+    tiers_local$tier_c$max_logfc_cv <- Inf
+  }
+  if (ignore_cct) {
+    tiers_local$tier_a$max_cct_fdr <- Inf
+    tiers_local$tier_b$max_cct_fdr <- Inf
+    tiers_local$tier_c$max_cct_fdr <- Inf
+  }
+  if (ignore_rra) {
+    tiers_local$tier_a$max_rra_fdr <- Inf
+    tiers_local$tier_b$max_rra_fdr <- Inf
+    tiers_local$tier_c$max_rra_fdr <- Inf
+  }
+  assign_tier(support_n, sign_consistency_n, best_rra_fdr, best_cct_fdr, logfc_cv, tiers_local)
+}
+
 load_quantifier_result <- function(path, quantifier, method, contrast) {
   read_csv(path, show_col_types = FALSE) %>%
     filter(
@@ -299,12 +334,83 @@ plot_scatter <- function(consensus_df, output_path, contrast) {
   ggsave(output_path, plot = p, width = 7, height = 6)
 }
 
+plot_consensus_volcano <- function(consensus_df, output_path, contrast, p_clip) {
+  plot_df <- consensus_df %>%
+    mutate(
+      volcano_y = -log10(pmax(.data$best_rra_fdr, p_clip)),
+      tier = factor(.data$tier, levels = c("Tier_A", "Tier_B", "Tier_C", "unclassified"))
+    )
+
+  p <- ggplot(plot_df, aes(x = .data$consensus_logFC, y = .data$volcano_y, color = .data$tier)) +
+    geom_point(alpha = 0.75, size = 1.6) +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
+    geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "grey50") +
+    labs(
+      title = paste0("Consensus volcano: ", contrast),
+      x = "consensus_logFC",
+      y = "-log10(best_rra_fdr)",
+      color = "Tier"
+    ) +
+    theme_bw(base_size = 11)
+
+  ggsave(output_path, plot = p, width = 7, height = 6)
+}
+
+plot_significance_upset <- function(membership_df, quantifiers, output_path, contrast) {
+  sets <- lapply(quantifiers, function(quantifier) membership_df$gene_id_standard[membership_df[[quantifier]]])
+  names(sets) <- quantifiers
+  non_empty_sets <- sets[lengths(sets) > 0]
+
+  pdf(output_path, width = 9, height = 6)
+  on.exit(dev.off(), add = TRUE)
+
+  if (length(non_empty_sets) == 0) {
+    plot.new()
+    text(0.5, 0.5, paste0("No significant genes for UpSet: ", contrast))
+    return(invisible(NULL))
+  }
+
+  upset(
+    fromList(non_empty_sets),
+    nsets = length(non_empty_sets),
+    nintersects = NA,
+    order.by = c("freq", "degree"),
+    mainbar.y.label = "Significant gene intersections",
+    sets.x.label = "Significant genes per quantifier",
+    text.scale = 1.1
+  )
+}
+
+build_sensitivity_table <- function(consensus_df, tiers) {
+  tibble(
+    scenario = c(
+      "current_tier_b",
+      "tier_b_support2",
+      "tier_b_support4",
+      "tier_b_without_cv",
+      "tier_b_without_cct",
+      "tier_b_without_rra"
+    ),
+    genes = c(
+      sum(consensus_df$tier == "Tier_B"),
+      sum(vapply(seq_len(nrow(consensus_df)), function(i) classify_tier_with_override(consensus_df$support_n[i], consensus_df$sign_consistency_n[i], consensus_df$best_rra_fdr[i], consensus_df$best_cct_fdr[i], consensus_df$logFC_CV[i], tiers, tier_b_support = 2) == "Tier_B", logical(1))),
+      sum(vapply(seq_len(nrow(consensus_df)), function(i) classify_tier_with_override(consensus_df$support_n[i], consensus_df$sign_consistency_n[i], consensus_df$best_rra_fdr[i], consensus_df$best_cct_fdr[i], consensus_df$logFC_CV[i], tiers, tier_b_support = 4) == "Tier_B", logical(1))),
+      sum(vapply(seq_len(nrow(consensus_df)), function(i) classify_tier_with_override(consensus_df$support_n[i], consensus_df$sign_consistency_n[i], consensus_df$best_rra_fdr[i], consensus_df$best_cct_fdr[i], consensus_df$logFC_CV[i], tiers, ignore_cv = TRUE) == "Tier_B", logical(1))),
+      sum(vapply(seq_len(nrow(consensus_df)), function(i) classify_tier_with_override(consensus_df$support_n[i], consensus_df$sign_consistency_n[i], consensus_df$best_rra_fdr[i], consensus_df$best_cct_fdr[i], consensus_df$logFC_CV[i], tiers, ignore_cct = TRUE) == "Tier_B", logical(1))),
+      sum(vapply(seq_len(nrow(consensus_df)), function(i) classify_tier_with_override(consensus_df$support_n[i], consensus_df$sign_consistency_n[i], consensus_df$best_rra_fdr[i], consensus_df$best_cct_fdr[i], consensus_df$logFC_CV[i], tiers, ignore_rra = TRUE) == "Tier_B", logical(1)))
+    )
+  )
+}
+
 consensus_config <- snakemake@config[["consensus"]]
+config_dea <- snakemake@config[["dea"]]
 contrast <- snakemake@wildcards[["contrast"]]
 method <- consensus_config$methods[[1]] %||% "deseq2"
 configured_quantifiers <- consensus_config$quantifiers %||% c("featurecounts", "stringtie", "salmon", "kallisto")
 p_clip <- as.numeric(consensus_config$p_clip %||% 1e-16)
 tiers <- consensus_config$tiers
+fdr_threshold <- as.numeric(config_dea$fdr_threshold %||% 0.05)
+lfc_threshold <- as.numeric(config_dea$lfc_threshold %||% 1.0)
 
 raw_input_paths <- unique(unname(unlist(snakemake@input)))
 raw_input_paths <- raw_input_paths[!is.na(raw_input_paths)]
@@ -317,7 +423,12 @@ input_paths <- as.list(raw_input_paths)
 names(input_paths) <- quantifiers
 output_table <- snakemake@output[["table"]]
 output_summary <- snakemake@output[["summary"]]
+output_diagnostics <- snakemake@output[["diagnostics"]]
+output_membership <- snakemake@output[["membership"]]
+output_sensitivity <- snakemake@output[["sensitivity"]]
 output_scatter <- snakemake@output[["scatter"]]
+output_volcano <- snakemake@output[["volcano"]]
+output_upset <- snakemake@output[["upset"]]
 
 dir.create(dirname(output_table), recursive = TRUE, showWarnings = FALSE)
 
@@ -351,17 +462,22 @@ for (quantifier in names(data_list)) {
 gene_name_cols <- grep("^gene_name__", colnames(consensus_df), value = TRUE)
 logfc_cols <- paste0("logFC__", names(data_list))
 p_cols <- paste0("P.Value__", names(data_list))
+adj_cols <- paste0("adj.P.Val__", names(data_list))
 
 consensus_df$gene_name <- coalesce_columns(consensus_df, gene_name_cols)
 
 logfc_matrix <- as.matrix(consensus_df[, logfc_cols, drop = FALSE])
 p_matrix <- as.matrix(consensus_df[, p_cols, drop = FALSE])
+adj_matrix <- as.matrix(consensus_df[, adj_cols, drop = FALSE])
 storage.mode(logfc_matrix) <- "numeric"
 storage.mode(p_matrix) <- "numeric"
+storage.mode(adj_matrix) <- "numeric"
 
-support_n <- rowSums(!is.na(logfc_matrix))
-up_support_n <- rowSums(logfc_matrix > 0, na.rm = TRUE)
-down_support_n <- rowSums(logfc_matrix < 0, na.rm = TRUE)
+sig_matrix <- !is.na(logfc_matrix) & !is.na(adj_matrix) & (adj_matrix <= fdr_threshold) & (abs(logfc_matrix) >= lfc_threshold)
+
+support_n <- rowSums(sig_matrix, na.rm = TRUE)
+up_support_n <- rowSums(sig_matrix & logfc_matrix > 0, na.rm = TRUE)
+down_support_n <- rowSums(sig_matrix & logfc_matrix < 0, na.rm = TRUE)
 sign_consistency_n <- pmax(up_support_n, down_support_n)
 
 rra_up <- compute_rra_scores(data_list, universe, direction = "up") %>% rename(rra_up_p = "p", rra_up_fdr = "fdr")
@@ -382,21 +498,21 @@ consensus_direction <- vapply(
 )
 
 supporting_quantifiers <- vapply(
-  seq_len(nrow(logfc_matrix)),
-  function(i) paste(collapse_names(logfc_matrix[i, ], names(data_list)), collapse = ";"),
+  seq_len(nrow(sig_matrix)),
+  function(i) paste(names(data_list)[sig_matrix[i, ]], collapse = ";"),
   character(1)
 )
 
 consistent_quantifiers <- vapply(
-  seq_len(nrow(logfc_matrix)),
+  seq_len(nrow(sig_matrix)),
   function(i) {
     direction <- consensus_direction[i]
     if (direction == "up") {
-      keep <- !is.na(logfc_matrix[i, ]) & logfc_matrix[i, ] > 0
+      keep <- sig_matrix[i, ] & logfc_matrix[i, ] > 0
     } else if (direction == "down") {
-      keep <- !is.na(logfc_matrix[i, ]) & logfc_matrix[i, ] < 0
+      keep <- sig_matrix[i, ] & logfc_matrix[i, ] < 0
     } else {
-      keep <- !is.na(logfc_matrix[i, ])
+      keep <- sig_matrix[i, ]
     }
     paste(names(data_list)[keep], collapse = ";")
   },
@@ -463,6 +579,36 @@ tier <- vapply(
   character(1)
 )
 
+tier_blocker_a <- vapply(
+  seq_len(nrow(consensus_df)),
+  function(i) list_failures(support_n[i], sign_consistency_n[i], best_rra_fdr[i], best_cct_fdr[i], logfc_cv[i], tiers$tier_a),
+  character(1)
+)
+
+tier_blocker_b <- vapply(
+  seq_len(nrow(consensus_df)),
+  function(i) list_failures(support_n[i], sign_consistency_n[i], best_rra_fdr[i], best_cct_fdr[i], logfc_cv[i], tiers$tier_b),
+  character(1)
+)
+
+tier_blocker_c <- vapply(
+  seq_len(nrow(consensus_df)),
+  function(i) list_failures(support_n[i], sign_consistency_n[i], best_rra_fdr[i], best_cct_fdr[i], logfc_cv[i], tiers$tier_c),
+  character(1)
+)
+
+membership_df <- tibble(gene_id_standard = universe, gene_name = consensus_df$gene_name)
+for (idx in seq_along(quantifiers)) {
+  membership_df[[quantifiers[idx]]] <- sig_matrix[, idx]
+}
+membership_df <- membership_df %>%
+  mutate(
+    support_n = support_n,
+    up_support_n = up_support_n,
+    down_support_n = down_support_n,
+    membership_pattern = vapply(seq_len(nrow(sig_matrix)), function(i) paste(quantifiers[sig_matrix[i, ]], collapse = ";"), character(1))
+  )
+
 consensus_df <- consensus_df %>%
   mutate(
     contrast = contrast,
@@ -484,7 +630,10 @@ consensus_df <- consensus_df %>%
     best_rra_fdr = best_rra_fdr,
     best_cct_p = best_cct_p,
     best_cct_fdr = best_cct_fdr,
-    tier = tier
+    tier = tier,
+    tier_blocker_a = tier_blocker_a,
+    tier_blocker_b = tier_blocker_b,
+    tier_blocker_c = tier_blocker_c
   ) %>%
   select(
     "gene_id_standard",
@@ -517,11 +666,32 @@ consensus_df <- consensus_df %>%
     "best_cct_p",
     "best_cct_fdr",
     "tier",
+    "tier_blocker_a",
+    "tier_blocker_b",
+    "tier_blocker_c",
     all_of(logfc_cols),
     all_of(p_cols),
-    all_of(paste0("adj.P.Val__", names(data_list)))
+    all_of(adj_cols)
   ) %>%
   arrange(.data$best_rra_fdr, .data$best_cct_fdr, desc(.data$sign_consistency_n), desc(abs(.data$consensus_logFC)))
+
+diagnostics_df <- consensus_df %>%
+  transmute(
+    gene_id_standard = .data$gene_id_standard,
+    gene_name = .data$gene_name,
+    tier = .data$tier,
+    support_n = .data$support_n,
+    sign_consistency_n = .data$sign_consistency_n,
+    consensus_direction = .data$consensus_direction,
+    best_rra_fdr = .data$best_rra_fdr,
+    best_cct_fdr = .data$best_cct_fdr,
+    logFC_CV = .data$logFC_CV,
+    tier_blocker_a = .data$tier_blocker_a,
+    tier_blocker_b = .data$tier_blocker_b,
+    tier_blocker_c = .data$tier_blocker_c
+  )
+
+sensitivity_df <- build_sensitivity_table(consensus_df, tiers)
 
 summary_df <- tibble(
   metric = c(
@@ -529,26 +699,43 @@ summary_df <- tibble(
     "method",
     "quantifiers",
     "universe_n",
+    "significance_fdr_threshold",
+    "significance_lfc_threshold",
     "tier_a_n",
     "tier_b_n",
     "tier_c_n",
-    "unclassified_n"
+    "unclassified_n",
+    "support2_tier_b_n",
+    "tier_b_without_cv_n",
+    "tier_b_without_cct_n",
+    "tier_b_without_rra_n"
   ),
   value = c(
     contrast,
     method,
     paste(names(data_list), collapse = ";"),
     length(universe),
+    fdr_threshold,
+    lfc_threshold,
     sum(consensus_df$tier == "Tier_A"),
     sum(consensus_df$tier == "Tier_B"),
     sum(consensus_df$tier == "Tier_C"),
-    sum(consensus_df$tier == "unclassified")
+    sum(consensus_df$tier == "unclassified"),
+    sensitivity_df$genes[sensitivity_df$scenario == "tier_b_support2"],
+    sensitivity_df$genes[sensitivity_df$scenario == "tier_b_without_cv"],
+    sensitivity_df$genes[sensitivity_df$scenario == "tier_b_without_cct"],
+    sensitivity_df$genes[sensitivity_df$scenario == "tier_b_without_rra"]
   )
 )
 
 write_tsv(consensus_df, output_table)
 write_tsv(summary_df, output_summary)
+write_tsv(diagnostics_df, output_diagnostics)
+write_tsv(membership_df, output_membership)
+write_tsv(sensitivity_df, output_sensitivity)
 plot_scatter(consensus_df, output_scatter, contrast)
+plot_consensus_volcano(consensus_df, output_volcano, contrast, p_clip)
+plot_significance_upset(membership_df, quantifiers, output_upset, contrast)
 
 cat("Consensus DEA completed successfully.\n")
 sink()

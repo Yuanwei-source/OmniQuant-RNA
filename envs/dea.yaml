@@ -19,6 +19,7 @@ dependencies:
   - r-ggplot2
   - r-pheatmap
   - r-ggrepel
+  - r-upsetr
   - r-venndiagram
   - r-robustrankaggreg
   - r-argparse

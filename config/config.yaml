@@ -98,7 +98,7 @@ consensus:
   enabled: true
   methods: ["deseq2"]
   quantifiers: ["featurecounts", "stringtie", "salmon", "kallisto"]
-  contrasts: ["Treatment1_vs_Control1"]
+  contrasts: "all"
   p_clip: 1.0e-16
   tiers:
     tier_a:
