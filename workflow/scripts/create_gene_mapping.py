@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import re
 import argparse
 import sys
@@ -47,7 +48,8 @@ def extract_gene_mapping(merged_gtf_file, verbose=False):
                 if stringtie_id in gene_mapping:
                     if gene_mapping[stringtie_id] != original_id:
                         print(f"Warning: Conflicting mapping for {stringtie_id}: "
-                              f"{gene_mapping[stringtie_id]} vs {original_id}")
+                              f"{gene_mapping[stringtie_id]} vs {original_id}",
+                              file=sys.stderr)
                 else:
                     gene_mapping[stringtie_id] = original_id
                     
@@ -58,6 +60,10 @@ def extract_gene_mapping(merged_gtf_file, verbose=False):
 
 def main():
     args = parse_arguments()
+
+    output_dir = os.path.dirname(args.output)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
     
     if args.verbose:
         print(f"Reading merged GTF file: {args.merged_gtf}")

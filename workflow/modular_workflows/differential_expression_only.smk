@@ -71,6 +71,7 @@ preprocess_genome_fasta(config.get("reference", {}).get("genome", ""))
 # Get selected aligner from config
 ALIGNER = config.get("aligner", "hisat2")
 
+include: "../rules/reference_namespace.smk"
 include: "../rules/differential_expression.smk"
 
 rule all_differential_expression:

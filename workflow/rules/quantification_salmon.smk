@@ -1,6 +1,8 @@
 # Quantification Rules
 # Transcript quantification using Kallisto and Salmon
 
+SALMON_SNAPSHOT_DIR = "results/tables/raw_matrices/salmon"
+
 rule salmon_index:
     """
     Build Salmon index from transcriptome
@@ -55,16 +57,16 @@ rule salmon_quant:
 
 rule aggregate_salmon_summary:
     """
-    Aggregate Salmon results across all samples
+    Aggregate Salmon results across all samples as snapshot matrices
     """
     input:
         quant_files=expand("results/04.quantification/salmon/{sample}/quant.sf", sample=SAMPLES),
         gtf=config["reference"]["gtf"]
     output:
-        transcript_counts="results/04.quantification/salmon/all_samples_transcript_counts_matrix.txt",
-        transcript_tpm="results/04.quantification/salmon/all_samples_transcript_tpm_matrix.txt",
-        gene_counts="results/04.quantification/salmon/all_samples_gene_counts_matrix.txt",
-        gene_tpm="results/04.quantification/salmon/all_samples_gene_tpm_matrix.txt"
+        transcript_counts=f"{SALMON_SNAPSHOT_DIR}/all_samples_transcript_counts_matrix.txt",
+        transcript_tpm=f"{SALMON_SNAPSHOT_DIR}/all_samples_transcript_tpm_matrix.txt",
+        gene_counts=f"{SALMON_SNAPSHOT_DIR}/all_samples_gene_counts_matrix.txt",
+        gene_tpm=f"{SALMON_SNAPSHOT_DIR}/all_samples_gene_tpm_matrix.txt"
     conda:
         "../../envs/qc.yaml"
     params:

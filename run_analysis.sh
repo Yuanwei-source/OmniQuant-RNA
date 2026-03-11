@@ -1,5 +1,9 @@
 #!/bin/bash
 
+if [ -z "${BASH_VERSION:-}" ]; then
+    exec bash "$0" "$@"
+fi
+
 # OmniQuant-RNA - 运行脚本
 # 使用方法: ./run_analysis.sh
 
@@ -57,6 +61,8 @@ echo "=== 工作流执行完成 ==="
 echo "结束时间: $(date)"
 echo ""
 echo "主要结果文件:"
-echo "- results/multiqc_report.html: 综合质量控制报告"
-echo "- results/quantification/: 各样本的定量结果"
-echo "- results/fastqc/: 质量控制结果"
+echo "- results/00.reference/: 统一 tx2gene / gene namespace / import manifest"
+echo "- results/tables/raw_matrices/: Salmon / Kallisto / StringTie 聚合快照矩阵"
+echo "- results/tables/qc_snapshots/: 映射与质控快照（如 StringTie gene_id_mapping）"
+echo "- results/05.differential_expression/: 正式 DEA 结果"
+echo "- results/07.reports/multiqc_report.html: 综合质量控制报告"

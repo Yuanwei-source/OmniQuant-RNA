@@ -12,6 +12,13 @@ from collections import defaultdict
 import warnings
 
 
+def ensure_parent_dir(path):
+    """Create parent directory for an output file if needed."""
+    directory = os.path.dirname(path)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
+
+
 def parse_arguments():
     """Parse command line arguments"""
     parser = argparse.ArgumentParser(
@@ -367,6 +374,18 @@ def write_expression_matrix(data_dict, sample_names, output_file, id_type="gene"
 def main():
     """Main function"""
     args = parse_arguments()
+
+    output_paths = [
+        args.output_gene_counts,
+        args.output_transcript_counts,
+        args.output_gene_tpm,
+        args.output_transcript_tpm,
+        args.output_gene_fpkm,
+        args.output_transcript_fpkm,
+    ]
+    for output_path in output_paths:
+        if output_path:
+            ensure_parent_dir(output_path)
     
     # Load gene mapping if provided
     gene_mapping = load_gene_mapping(args.gene_mapping)

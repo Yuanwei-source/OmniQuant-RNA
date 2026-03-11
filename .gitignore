@@ -24,6 +24,7 @@ results/04.quantification/stringtie/transcript_tpm_matrix.tsv
 gene_counts_matrix_fixed.tsv
 gene_tpm_matrix_fixed.tsv
 gene_id_mapping.tsv
+Rplots.pdf
 
 # 临时文件
 *.tmp

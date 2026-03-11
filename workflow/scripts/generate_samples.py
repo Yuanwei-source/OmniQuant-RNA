@@ -73,13 +73,13 @@ Examples:
     args = parser.parse_args()
     
     if not os.path.isdir(args.fastq_dir):
-        print(f"Error: {args.fastq_dir} is not a directory")
+        print("Error: {} is not a directory".format(args.fastq_dir))
         sys.exit(1)
     
     # Find FASTQ files
     fastq_files = find_fastq_files(args.fastq_dir)
     if not fastq_files:
-        print(f"No FASTQ files found in {args.fastq_dir}")
+        print("No FASTQ files found in {}".format(args.fastq_dir))
         sys.exit(1)
     
     # Extract sample info
@@ -97,7 +97,7 @@ Examples:
         r1 = samples_dict[sample]['r1']
         r2 = samples_dict[sample]['r2']
         if r1:
-            line = f"{sample}\t{r1}\t{r2 if r2 else ''}\t"
+            line = "{}\t{}\t{}\t".format(sample, r1, r2 if r2 else '')
             output_lines.append(line)
     
     # Output
@@ -109,7 +109,7 @@ Examples:
             
         with open(output_path, 'w') as f:
             f.write('\n'.join(output_lines) + '\n')
-        print(f"Sample configuration written to {output_path}")
+        print("Sample configuration written to {}".format(output_path))
     else:
         for line in output_lines:
             print(line)

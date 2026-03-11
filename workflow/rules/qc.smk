@@ -17,12 +17,18 @@ rule raw_reads_fastqc:
     conda:
         "../../envs/qc.yaml"
     params:
-        output_dir = "results/01.raw_qc"
+        output_dir = "results/01.raw_qc",
+        forward_alias = lambda wildcards, input: get_fastqc_alias_path(wildcards.sample, "R1", input.forward_reads),
+        reverse_alias = lambda wildcards, input: get_fastqc_alias_path(wildcards.sample, "R2", input.reverse_reads)
     log:
         "logs/{sample}_raw_fastqc.log" 
     shell:
         """
-        fastqc -q -t {threads} --memory {resources.mem_mb} -o {params.output_dir} {input.forward_reads} {input.reverse_reads} >> {log} 2>&1
+        mkdir -p "$(dirname "{params.forward_alias}")"
+        ln -sf "$(realpath "{input.forward_reads}")" "{params.forward_alias}"
+        ln -sf "$(realpath "{input.reverse_reads}")" "{params.reverse_alias}"
+
+        fastqc -q -t {threads} --memory {resources.mem_mb} -o {params.output_dir} "{params.forward_alias}" "{params.reverse_alias}" >> {log} 2>&1
         """
 
 rule quality_trimming_fastp:

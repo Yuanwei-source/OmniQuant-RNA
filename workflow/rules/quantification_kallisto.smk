@@ -1,6 +1,8 @@
 # Quantification Rules
 # Transcript quantification using Kallisto and Salmon
 
+KALLISTO_SNAPSHOT_DIR = "results/tables/raw_matrices/kallisto"
+
 rule kallisto_index:
     """
     Build Kallisto index from transcriptome
@@ -50,13 +52,13 @@ rule kallisto_quant:
 
 rule aggregate_kallisto_summary:
     """
-    Aggregate Kallisto results across all samples
+    Aggregate Kallisto results across all samples as snapshot matrices
     """
     input:
         expand("results/04.quantification/kallisto/{sample}/abundance.tsv", sample=SAMPLES)
     output:
-        counts="results/04.quantification/kallisto/all_samples_counts_matrix.txt",
-        tpm="results/04.quantification/kallisto/all_samples_tpm_matrix.txt"
+        counts=f"{KALLISTO_SNAPSHOT_DIR}/all_samples_counts_matrix.txt",
+        tpm=f"{KALLISTO_SNAPSHOT_DIR}/all_samples_tpm_matrix.txt"
     conda:
         "../../envs/qc.yaml"
     params:
