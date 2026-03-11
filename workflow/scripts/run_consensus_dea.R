@@ -378,7 +378,7 @@ plot_significance_upset <- function(membership_df, quantifiers, output_path, con
     return(invisible(NULL))
   }
 
-  upset(
+  upset_plot <- upset(
     fromList(non_empty_sets),
     nsets = length(non_empty_sets),
     nintersects = NA,
@@ -387,6 +387,9 @@ plot_significance_upset <- function(membership_df, quantifiers, output_path, con
     sets.x.label = "Significant genes per quantifier",
     text.scale = 1.1
   )
+
+  print(upset_plot)
+  invisible(upset_plot)
 }
 
 build_sensitivity_table <- function(consensus_df, tiers) {

@@ -112,6 +112,30 @@ def get_r1(wildcards):
 def get_r2(wildcards):
     return samples_df.loc[wildcards.sample, "fq2"]
 
+FASTQ_SUFFIXES = [
+    ".fastq.gz",
+    ".fq.gz",
+    ".fastq.bz2",
+    ".fq.bz2",
+    ".fastq",
+    ".fq",
+]
+
+
+def get_fastq_suffix(path):
+    lower_path = str(path).lower()
+    for suffix in FASTQ_SUFFIXES:
+        if lower_path.endswith(suffix):
+            return suffix
+    raise ValueError(
+        f"Unsupported FASTQ extension for '{path}'. Supported suffixes: {', '.join(FASTQ_SUFFIXES)}"
+    )
+
+
+def get_fastqc_alias_path(sample, read_label, source_path):
+    suffix = get_fastq_suffix(source_path)
+    return os.path.join(".snakemake", "fastqc_aliases", sample, f"{sample}_{read_label}{suffix}")
+
 # Define alignment output paths based on selected aligner
 def get_alignment_outputs(samples):
     if ALIGNER == "hisat2":
@@ -214,7 +238,7 @@ rule all:
         
         # StringTie results with original gene IDs (for downstream analysis)
         "results/tables/raw_matrices/stringtie/gene_counts_matrix.tsv",
-        "results/tables/raw_matrices/stringtie/transcript_counts_matrix.tsv", 
+        "results/tables/raw_matrices/stringtie/transcript_counts_matrix.tsv",
         "results/tables/raw_matrices/stringtie/gene_tpm_matrix.tsv",
         "results/tables/raw_matrices/stringtie/transcript_tpm_matrix.tsv",
         

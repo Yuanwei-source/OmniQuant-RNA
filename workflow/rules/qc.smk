@@ -17,26 +17,18 @@ rule raw_reads_fastqc:
     conda:
         "../../envs/qc.yaml"
     params:
-        output_dir = "results/01.raw_qc"
+        output_dir = "results/01.raw_qc",
+        forward_alias = lambda wildcards, input: get_fastqc_alias_path(wildcards.sample, "R1", input.forward_reads),
+        reverse_alias = lambda wildcards, input: get_fastqc_alias_path(wildcards.sample, "R2", input.reverse_reads)
     log:
         "logs/{sample}_raw_fastqc.log" 
     shell:
         """
-        fastqc -q -t {threads} --memory {resources.mem_mb} -o {params.output_dir} {input.forward_reads} {input.reverse_reads} >> {log} 2>&1
+        mkdir -p "$(dirname "{params.forward_alias}")"
+        ln -sf "$(realpath "{input.forward_reads}")" "{params.forward_alias}"
+        ln -sf "$(realpath "{input.reverse_reads}")" "{params.reverse_alias}"
 
-        forward_base=$(basename "{input.forward_reads}")
-        forward_base=${{forward_base%.gz}}
-        forward_base=${{forward_base%.fastq}}
-        forward_base=${{forward_base%.fq}}
-        reverse_base=$(basename "{input.reverse_reads}")
-        reverse_base=${{reverse_base%.gz}}
-        reverse_base=${{reverse_base%.fastq}}
-        reverse_base=${{reverse_base%.fq}}
-
-        mv "{params.output_dir}/${{forward_base}}_fastqc.html" "{output.forward_html}"
-        mv "{params.output_dir}/${{forward_base}}_fastqc.zip" "{output.forward_zip}"
-        mv "{params.output_dir}/${{reverse_base}}_fastqc.html" "{output.reverse_html}"
-        mv "{params.output_dir}/${{reverse_base}}_fastqc.zip" "{output.reverse_zip}"
+        fastqc -q -t {threads} --memory {resources.mem_mb} -o {params.output_dir} "{params.forward_alias}" "{params.reverse_alias}" >> {log} 2>&1
         """
 
 rule quality_trimming_fastp:

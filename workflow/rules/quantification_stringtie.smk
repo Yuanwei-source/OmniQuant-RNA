@@ -124,10 +124,10 @@ rule create_gene_mapping:
         "logs/stringtie/create_gene_mapping.log"
     shell:
         """
-        python workflow/scripts/create_gene_mapping.py \
+        python -u workflow/scripts/create_gene_mapping.py \
             --merged-gtf {input.merged_gtf} \
             --output {output.mapping} \
-            --verbose 2> {log}
+            --verbose > {log} 2>&1
         """
 
 rule aggregate_stringtie_summary:
@@ -155,7 +155,7 @@ rule aggregate_stringtie_summary:
         "logs/stringtie/aggregate_summary.log"
     shell:
         """
-        python workflow/scripts/aggregate_stringtie.py \
+        python -u workflow/scripts/aggregate_stringtie.py \
             --input_dir {params.input_dir} \
             --pattern "{params.pattern}" \
             --gene-mapping {input.gene_mapping} \
@@ -166,7 +166,7 @@ rule aggregate_stringtie_summary:
             --output-gene-fpkm {output.gene_fpkm} \
             --output-transcript-fpkm {output.transcript_fpkm} \
             --length {params.read_length} \
-            --verbose 2> {log}
+            --verbose > {log} 2>&1
         """
 
 rule aggregate_stringtie_original:
@@ -192,7 +192,7 @@ rule aggregate_stringtie_original:
         "logs/stringtie/aggregate_original.log"
     shell:
         """
-        python workflow/scripts/aggregate_stringtie.py \
+        python -u workflow/scripts/aggregate_stringtie.py \
             --input_dir {params.input_dir} \
             --pattern "{params.pattern}" \
             --gene-mapping {input.gene_mapping} \
@@ -201,7 +201,7 @@ rule aggregate_stringtie_original:
             --output-gene-tpm {output.gene_tpm} \
             --output-transcript-tpm {output.transcript_tpm} \
             --length {params.read_length} \
-            --verbose 2> {log}
+            --verbose > {log} 2>&1
         """
 
 # Compatibility rule for main workflow
