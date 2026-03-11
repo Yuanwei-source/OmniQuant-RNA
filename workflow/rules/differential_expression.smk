@@ -1,11 +1,12 @@
 # Differential Expression Analysis Rules
 
 DEA_IMPORT_CONFIG = config.get("dea_import", {})
+FEATURECOUNTS_MATRIX = "results/04.quantification/matrices/featurecounts/featurecounts_gene_counts_matrix.tsv"
 
 # Helper function to get inputs based on quantifier
 def get_dea_primary_input(wildcards):
     if wildcards.quantifier == "featurecounts":
-        return "results/04.quantification/featurecounts/all_samples/counts_matrix.txt"
+        return FEATURECOUNTS_MATRIX
     elif wildcards.quantifier == "stringtie":
         return STRINGTIE_MANIFEST
     elif wildcards.quantifier == "salmon":

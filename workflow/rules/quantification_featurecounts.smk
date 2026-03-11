@@ -135,8 +135,8 @@ rule featurecounts_single:
         gtf=FEATURECOUNTS_GTF,
         summary=FEATURECOUNTS_GTF_SUMMARY
     output:
-        counts="results/04.quantification/featurecounts/{sample}/counts.txt",
-        summary="results/04.quantification/featurecounts/{sample}/counts.txt.summary"
+        counts="results/04.quantification/native/featurecounts/per_sample/{sample}/counts.txt",
+        summary="results/04.quantification/native/featurecounts/per_sample/{sample}/counts.txt.summary"
     conda:
         "../../envs/featurecounts.yaml"
     params:
@@ -158,38 +158,6 @@ rule featurecounts_single:
         {input.bam} 2> {log}
         """
 
-rule featurecounts_all:
-    """
-    Count reads mapped to genes using featureCounts (all samples together)
-    """
-    input:
-        bams=expand("results/03.alignment/{sample}.bam", sample=SAMPLES),
-        gtf=FEATURECOUNTS_GTF,
-        summary=FEATURECOUNTS_GTF_SUMMARY
-    output:
-        counts="results/04.quantification/featurecounts/all_samples/counts_matrix.txt",
-        summary="results/04.quantification/featurecounts/all_samples/counts_matrix.txt.summary"
-    conda:
-        "../../envs/featurecounts.yaml"
-    params:
-        extra=FEATURECOUNTS_CONFIG.get("extra", "-p -B -C"),
-        feature_type=FEATURECOUNTS_CONFIG.get("feature_type", "exon"),
-        attribute=FC_GENE
-    log:
-        "logs/featurecounts/all_samples.log"
-    threads: 12
-    shell:
-        """
-        featureCounts \
-        -a {input.gtf} \
-        -o {output.counts} \
-        -t {params.feature_type} \
-        -g {params.attribute} \
-        -T {threads} \
-        {params.extra} \
-        {input.bams} 2> {log}
-        """
-
 rule featurecounts_transcript:
     """
     Count reads mapped to transcripts using featureCounts
@@ -199,8 +167,8 @@ rule featurecounts_transcript:
         gtf=FEATURECOUNTS_GTF,
         summary=FEATURECOUNTS_GTF_SUMMARY
     output:
-        counts="results/04.quantification/featurecounts/{sample}/transcript_counts.txt",
-        summary="results/04.quantification/featurecounts/{sample}/transcript_counts.txt.summary"
+        counts="results/04.quantification/native/featurecounts/per_sample/{sample}/transcript_counts.txt",
+        summary="results/04.quantification/native/featurecounts/per_sample/{sample}/transcript_counts.txt.summary"
     conda:
         "../../envs/featurecounts.yaml"
     params:
@@ -231,8 +199,8 @@ rule featurecounts_exon:
         gtf=FEATURECOUNTS_GTF,
         summary=FEATURECOUNTS_GTF_SUMMARY
     output:
-        counts="results/04.quantification/featurecounts/{sample}/exon_counts.txt",
-        summary="results/04.quantification/featurecounts/{sample}/exon_counts.txt.summary"
+        counts="results/04.quantification/native/featurecounts/per_sample/{sample}/exon_counts.txt",
+        summary="results/04.quantification/native/featurecounts/per_sample/{sample}/exon_counts.txt.summary"
     conda:
         "../../envs/featurecounts.yaml"
     params:
@@ -260,25 +228,25 @@ rule quantification_results_featurecounts:
     Create symlink for main workflow compatibility
     """
     input:
-        "results/04.quantification/featurecounts/{sample}/counts.txt"
+        "results/04.quantification/native/featurecounts/per_sample/{sample}/counts.txt"
     output:
         "results/quantification_results/{sample}/featurecounts.txt"
     shell:
-        "mkdir -p $(dirname {output}) && ln -sf ../../05.quantification/featurecounts/{wildcards.sample}/counts.txt {output}"
+        "mkdir -p $(dirname {output}) && ln -sf ../../04.quantification/native/featurecounts/per_sample/{wildcards.sample}/counts.txt {output}"
 
 rule aggregate_featurecounts_summary:
     """
-    Aggregate featureCounts results across all samples
+    Aggregate featureCounts per-sample results into the canonical gene count matrix
     """
     input:
-        expand("results/04.quantification/featurecounts/{sample}/counts.txt", sample=SAMPLES)
+        expand("results/04.quantification/native/featurecounts/per_sample/{sample}/counts.txt", sample=SAMPLES)
     output:
-        counts="results/04.quantification/featurecounts/all_samples_counts_matrix.txt"
+        counts="results/04.quantification/matrices/featurecounts/featurecounts_gene_counts_matrix.tsv"
     conda:
         "../../envs/qc.yaml"
     params:
         samples=SAMPLES,
-        input_dir="results/04.quantification/featurecounts"
+        input_dir="results/04.quantification/native/featurecounts/per_sample"
     log:
         "logs/featurecounts/aggregate_summary.log"
     shell:
@@ -288,14 +256,3 @@ rule aggregate_featurecounts_summary:
             --samples {params.samples} \
             --output-counts {output.counts} 2> {log}
         """
-
-rule aggregate_featurecounts:
-    """
-    Create the expected all_samples_counts.txt file (for backward compatibility)
-    """
-    input:
-        "results/04.quantification/featurecounts/all_samples_counts_matrix.txt"
-    output:
-        "results/04.quantification/featurecounts/all_samples_counts.txt"
-    shell:
-        "cp {input} {output}"

@@ -117,7 +117,12 @@ def find_samples(input_dir, pattern):
     for gtf_path in gtf_files:
         # Extract sample name from path
         rel_path = os.path.relpath(gtf_path, input_dir)
+        rel_parts = Path(rel_path).parts
         sample_name = os.path.dirname(rel_path)
+
+        if len(rel_parts) >= 3 and rel_parts[-2] in {"final", "assembly"}:
+            sample_name = rel_parts[-3]
+
         if sample_name:
             samples.append((sample_name, gtf_path))
     

@@ -206,41 +206,41 @@ rule all:
         
         # Quantification results - multiple methods
         # Kallisto quantification
-        expand("results/04.quantification/kallisto/{sample}/abundance.tsv", sample=SAMPLES),
-        expand("results/04.quantification/kallisto/{sample}/abundance.h5", sample=SAMPLES),
-        "results/tables/raw_matrices/kallisto/all_samples_counts_matrix.txt",
-        "results/tables/raw_matrices/kallisto/all_samples_tpm_matrix.txt",
+        expand("results/04.quantification/native/kallisto/per_sample/{sample}/abundance.tsv", sample=SAMPLES),
+        expand("results/04.quantification/native/kallisto/per_sample/{sample}/abundance.h5", sample=SAMPLES),
+        "results/04.quantification/matrices/kallisto/kallisto_transcript_counts_matrix.tsv",
+        "results/04.quantification/matrices/kallisto/kallisto_transcript_tpm_matrix.tsv",
         
         # Salmon quantification
-        expand("results/04.quantification/salmon/{sample}/quant.sf", sample=SAMPLES),
-        "results/tables/raw_matrices/salmon/all_samples_transcript_counts_matrix.txt",
-        "results/tables/raw_matrices/salmon/all_samples_transcript_tpm_matrix.txt",
-        "results/tables/raw_matrices/salmon/all_samples_gene_counts_matrix.txt",
-        "results/tables/raw_matrices/salmon/all_samples_gene_tpm_matrix.txt",
+        expand("results/04.quantification/native/salmon/per_sample/{sample}/quant.sf", sample=SAMPLES),
+        "results/04.quantification/matrices/salmon/salmon_transcript_counts_matrix.tsv",
+        "results/04.quantification/matrices/salmon/salmon_transcript_tpm_matrix.tsv",
+        "results/04.quantification/matrices/salmon/salmon_gene_counts_matrix.tsv",
+        "results/04.quantification/matrices/salmon/salmon_gene_tpm_matrix.tsv",
         
         # featureCounts quantification
         "data/reference/genome.featurecounts.gtf",
         "data/reference/genome.featurecounts.summary.tsv",
-        expand("results/04.quantification/featurecounts/{sample}/counts.txt", sample=SAMPLES),
-        "results/04.quantification/featurecounts/all_samples_counts.txt",
-        "results/04.quantification/featurecounts/all_samples_counts_matrix.txt",
+        expand("results/04.quantification/native/featurecounts/per_sample/{sample}/counts.txt", sample=SAMPLES),
+        "results/04.quantification/matrices/featurecounts/featurecounts_gene_counts_matrix.tsv",
         
         # StringTie quantification
-        expand("results/04.quantification/stringtie/{sample}/final/transcripts.gtf", sample=SAMPLES),
-        expand("results/04.quantification/stringtie/{sample}/final/gene_abundances.tab", sample=SAMPLES),
-        "results/tables/qc_snapshots/stringtie/gene_id_mapping.tsv",
-        "results/tables/raw_matrices/stringtie/all_samples_gene_counts_matrix.txt",
-        "results/tables/raw_matrices/stringtie/all_samples_transcript_counts_matrix.txt",
-        "results/tables/raw_matrices/stringtie/all_samples_gene_tpm_matrix.txt",
-        "results/tables/raw_matrices/stringtie/all_samples_transcript_tpm_matrix.txt",
-        "results/tables/raw_matrices/stringtie/all_samples_gene_fpkm_matrix.txt",
-        "results/tables/raw_matrices/stringtie/all_samples_transcript_fpkm_matrix.txt",
+        expand("results/04.quantification/native/stringtie/per_sample/{sample}/final/transcripts.gtf", sample=SAMPLES),
+        expand("results/04.quantification/native/stringtie/per_sample/{sample}/final/gene_abundances.tab", sample=SAMPLES),
+        "results/04.quantification/native/stringtie/merged/merged.gtf",
+        "results/04.quantification/audit/stringtie/gene_id_mapping.tsv",
+        "results/04.quantification/matrices/stringtie/stringtie_gene_counts_matrix.tsv",
+        "results/04.quantification/matrices/stringtie/stringtie_transcript_counts_matrix.tsv",
+        "results/04.quantification/matrices/stringtie/stringtie_gene_tpm_matrix.tsv",
+        "results/04.quantification/matrices/stringtie/stringtie_transcript_tpm_matrix.tsv",
+        "results/04.quantification/matrices/stringtie/stringtie_gene_fpkm_matrix.tsv",
+        "results/04.quantification/matrices/stringtie/stringtie_transcript_fpkm_matrix.tsv",
         
         # StringTie results with original gene IDs (for downstream analysis)
-        "results/tables/raw_matrices/stringtie/gene_counts_matrix.tsv",
-        "results/tables/raw_matrices/stringtie/transcript_counts_matrix.tsv",
-        "results/tables/raw_matrices/stringtie/gene_tpm_matrix.tsv",
-        "results/tables/raw_matrices/stringtie/transcript_tpm_matrix.tsv",
+        "results/04.quantification/matrices/stringtie/stringtie_original_gene_counts_matrix.tsv",
+        "results/04.quantification/matrices/stringtie/stringtie_original_transcript_counts_matrix.tsv",
+        "results/04.quantification/matrices/stringtie/stringtie_original_gene_tpm_matrix.tsv",
+        "results/04.quantification/matrices/stringtie/stringtie_original_transcript_tpm_matrix.tsv",
         
         # DEA results
         expand("results/05.differential_expression/{quantifier}/integration/PCA_plot.pdf", quantifier=["featurecounts", "stringtie", "salmon", "kallisto"]),
@@ -270,11 +270,12 @@ rule qc_only:
 rule stringtie_only:
     """Run only StringTie quantification with original gene IDs"""
     input:
-        expand("results/04.quantification/stringtie/{sample}/final/transcripts.gtf", sample=SAMPLES),
-        expand("results/04.quantification/stringtie/{sample}/final/gene_abundances.tab", sample=SAMPLES),
-        "results/tables/qc_snapshots/stringtie/gene_id_mapping.tsv",
-        "results/tables/raw_matrices/stringtie/gene_counts_matrix.tsv",
-        "results/tables/raw_matrices/stringtie/gene_tpm_matrix.tsv"
+        expand("results/04.quantification/native/stringtie/per_sample/{sample}/final/transcripts.gtf", sample=SAMPLES),
+        expand("results/04.quantification/native/stringtie/per_sample/{sample}/final/gene_abundances.tab", sample=SAMPLES),
+        "results/04.quantification/native/stringtie/merged/merged.gtf",
+        "results/04.quantification/audit/stringtie/gene_id_mapping.tsv",
+        "results/04.quantification/matrices/stringtie/stringtie_original_gene_counts_matrix.tsv",
+        "results/04.quantification/matrices/stringtie/stringtie_original_gene_tpm_matrix.tsv"
 
 rule alignment_only:
     """Run quality control and alignment only"""
@@ -287,19 +288,19 @@ rule quantification_kallisto_only:
     """Run Kallisto quantification only"""
     input:
         "data/reference/kallisto_index/transcriptome.idx",
-        expand("results/04.quantification/kallisto/{sample}/abundance.tsv", sample=SAMPLES),
-        "results/tables/raw_matrices/kallisto/all_samples_counts_matrix.txt",
-        "results/tables/raw_matrices/kallisto/all_samples_tpm_matrix.txt"
+        expand("results/04.quantification/native/kallisto/per_sample/{sample}/abundance.tsv", sample=SAMPLES),
+        "results/04.quantification/matrices/kallisto/kallisto_transcript_counts_matrix.tsv",
+        "results/04.quantification/matrices/kallisto/kallisto_transcript_tpm_matrix.tsv"
 
 rule quantification_salmon_only:
     """Run Salmon quantification only"""
     input:
         "data/reference/salmon_index",
-        expand("results/04.quantification/salmon/{sample}/quant.sf", sample=SAMPLES),
-        "results/tables/raw_matrices/salmon/all_samples_transcript_counts_matrix.txt",
-        "results/tables/raw_matrices/salmon/all_samples_transcript_tpm_matrix.txt",
-        "results/tables/raw_matrices/salmon/all_samples_gene_counts_matrix.txt",
-        "results/tables/raw_matrices/salmon/all_samples_gene_tpm_matrix.txt"
+        expand("results/04.quantification/native/salmon/per_sample/{sample}/quant.sf", sample=SAMPLES),
+        "results/04.quantification/matrices/salmon/salmon_transcript_counts_matrix.tsv",
+        "results/04.quantification/matrices/salmon/salmon_transcript_tpm_matrix.tsv",
+        "results/04.quantification/matrices/salmon/salmon_gene_counts_matrix.tsv",
+        "results/04.quantification/matrices/salmon/salmon_gene_tpm_matrix.tsv"
 
 rule consensus_only:
     """Run configured consensus DEA contrasts only"""
@@ -311,18 +312,18 @@ rule quantification_featurecounts_only:
     input:
         "data/reference/genome.featurecounts.gtf",
         "data/reference/genome.featurecounts.summary.tsv",
-        expand("results/04.quantification/featurecounts/{sample}/counts.txt", sample=SAMPLES),
-        "results/04.quantification/featurecounts/all_samples_counts.txt",
-        "results/04.quantification/featurecounts/all_samples_counts_matrix.txt"
+        expand("results/04.quantification/native/featurecounts/per_sample/{sample}/counts.txt", sample=SAMPLES),
+        "results/04.quantification/matrices/featurecounts/featurecounts_gene_counts_matrix.tsv"
 
 rule quantification_stringtie_only:
     """Run StringTie quantification only"""
     input:
-        expand("results/04.quantification/stringtie/{sample}/final/transcripts.gtf", sample=SAMPLES),
-        expand("results/04.quantification/stringtie/{sample}/final/gene_abundances.tab", sample=SAMPLES),
-        "results/tables/raw_matrices/stringtie/all_samples_gene_counts_matrix.txt",
-        "results/tables/raw_matrices/stringtie/all_samples_transcript_counts_matrix.txt",
-        "results/tables/raw_matrices/stringtie/all_samples_gene_tpm_matrix.txt",
-        "results/tables/raw_matrices/stringtie/all_samples_transcript_tpm_matrix.txt",
-        "results/tables/raw_matrices/stringtie/all_samples_gene_fpkm_matrix.txt",
-        "results/tables/raw_matrices/stringtie/all_samples_transcript_fpkm_matrix.txt"
+        expand("results/04.quantification/native/stringtie/per_sample/{sample}/final/transcripts.gtf", sample=SAMPLES),
+        expand("results/04.quantification/native/stringtie/per_sample/{sample}/final/gene_abundances.tab", sample=SAMPLES),
+        "results/04.quantification/native/stringtie/merged/merged.gtf",
+        "results/04.quantification/matrices/stringtie/stringtie_gene_counts_matrix.tsv",
+        "results/04.quantification/matrices/stringtie/stringtie_transcript_counts_matrix.tsv",
+        "results/04.quantification/matrices/stringtie/stringtie_gene_tpm_matrix.tsv",
+        "results/04.quantification/matrices/stringtie/stringtie_transcript_tpm_matrix.tsv",
+        "results/04.quantification/matrices/stringtie/stringtie_gene_fpkm_matrix.tsv",
+        "results/04.quantification/matrices/stringtie/stringtie_transcript_fpkm_matrix.tsv"

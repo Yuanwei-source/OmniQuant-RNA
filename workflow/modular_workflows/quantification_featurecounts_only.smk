@@ -76,10 +76,10 @@ include: "../rules/quantification_featurecounts.smk"
 rule all:
     input:
         # Individual sample counts
-        expand("results/quantification/featurecounts/{sample}/counts.txt", sample=samples),
-        expand("results/quantification/featurecounts/{sample}/transcript_counts.txt", sample=samples),
-        expand("results/quantification/featurecounts/{sample}/exon_counts.txt", sample=samples),
+        expand("results/04.quantification/native/featurecounts/per_sample/{sample}/counts.txt", sample=samples),
+        expand("results/04.quantification/native/featurecounts/per_sample/{sample}/transcript_counts.txt", sample=samples),
+        expand("results/04.quantification/native/featurecounts/per_sample/{sample}/exon_counts.txt", sample=samples),
         # Combined count matrix
-        "results/quantification/featurecounts/all_samples/counts_matrix.txt",
+        "results/04.quantification/matrices/featurecounts/featurecounts_gene_counts_matrix.tsv",
         # Compatibility outputs
         expand("results/quantification/{sample}/featurecounts.txt", sample=samples)

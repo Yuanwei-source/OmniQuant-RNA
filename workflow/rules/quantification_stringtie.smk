@@ -1,8 +1,9 @@
 # Quantification Rules
 # Transcript quantification using StringTie
 
-STRINGTIE_SNAPSHOT_DIR = "results/tables/raw_matrices/stringtie"
-STRINGTIE_QC_SNAPSHOT_DIR = "results/tables/qc_snapshots/stringtie"
+STRINGTIE_NATIVE_DIR = "results/04.quantification/native/stringtie"
+STRINGTIE_MATRIX_DIR = "results/04.quantification/matrices/stringtie"
+STRINGTIE_AUDIT_DIR = "results/04.quantification/audit/stringtie"
 
 rule stringtie_assemble:
     """
@@ -12,14 +13,14 @@ rule stringtie_assemble:
         bam="results/03.alignment/{sample}.bam",
         gtf=config["reference"]["gtf"]
     output:
-        gtf="results/04.quantification/stringtie/{sample}/assembly/transcripts.gtf",
-        abundance="results/04.quantification/stringtie/{sample}/assembly/gene_abundances.tab",
-        coverage="results/04.quantification/stringtie/{sample}/assembly/t_data.ctab",
-        transcript_coverage="results/04.quantification/stringtie/{sample}/assembly/i_data.ctab"
+        gtf=f"{STRINGTIE_NATIVE_DIR}/per_sample" + "/{sample}/assembly/transcripts.gtf",
+        abundance=f"{STRINGTIE_NATIVE_DIR}/per_sample" + "/{sample}/assembly/gene_abundances.tab",
+        coverage=f"{STRINGTIE_NATIVE_DIR}/per_sample" + "/{sample}/assembly/t_data.ctab",
+        transcript_coverage=f"{STRINGTIE_NATIVE_DIR}/per_sample" + "/{sample}/assembly/i_data.ctab"
     conda:
         "../../envs/stringtie.yaml"
     params:
-        outdir="results/04.quantification/stringtie/{sample}/assembly",
+        outdir=f"{STRINGTIE_NATIVE_DIR}/per_sample" + "/{sample}/assembly",
         extra=config.get("stringtie", {}).get("extra", "-e -B")
     log:
         "logs/stringtie/{sample}_assembly.log"
@@ -42,9 +43,9 @@ rule stringtie_merge_list:
     Create list of GTF files for StringTie merge
     """
     input:
-        expand("results/04.quantification/stringtie/{sample}/assembly/transcripts.gtf", sample=SAMPLES)
+        expand(f"{STRINGTIE_NATIVE_DIR}/per_sample" + "/{sample}/assembly/transcripts.gtf", sample=SAMPLES)
     output:
-        "results/04.quantification/stringtie/gtf_list.txt"
+        f"{STRINGTIE_NATIVE_DIR}/merged/gtf_list.txt"
     shell:
         """
         ls {input} > {output}
@@ -55,10 +56,10 @@ rule stringtie_merge:
     Merge all sample GTF files using StringTie merge
     """
     input:
-        gtf_list="results/04.quantification/stringtie/gtf_list.txt",
+        gtf_list=f"{STRINGTIE_NATIVE_DIR}/merged/gtf_list.txt",
         reference_gtf=config["reference"]["gtf"]
     output:
-        merged_gtf="results/04.quantification/stringtie/merged.gtf"
+        merged_gtf=f"{STRINGTIE_NATIVE_DIR}/merged/merged.gtf"
     conda:
         "../../envs/stringtie.yaml"
     params:
@@ -82,16 +83,16 @@ rule stringtie_quantify_final:
     """
     input:
         bam="results/03.alignment/{sample}.bam",
-        merged_gtf="results/04.quantification/stringtie/merged.gtf"
+        merged_gtf=f"{STRINGTIE_NATIVE_DIR}/merged/merged.gtf"
     output:
-        gtf="results/04.quantification/stringtie/{sample}/final/transcripts.gtf",
-        abundance="results/04.quantification/stringtie/{sample}/final/gene_abundances.tab",
-        coverage="results/04.quantification/stringtie/{sample}/final/t_data.ctab",
-        transcript_coverage="results/04.quantification/stringtie/{sample}/final/i_data.ctab"
+        gtf=f"{STRINGTIE_NATIVE_DIR}/per_sample" + "/{sample}/final/transcripts.gtf",
+        abundance=f"{STRINGTIE_NATIVE_DIR}/per_sample" + "/{sample}/final/gene_abundances.tab",
+        coverage=f"{STRINGTIE_NATIVE_DIR}/per_sample" + "/{sample}/final/t_data.ctab",
+        transcript_coverage=f"{STRINGTIE_NATIVE_DIR}/per_sample" + "/{sample}/final/i_data.ctab"
     conda:
         "../../envs/stringtie.yaml"
     params:
-        outdir="results/04.quantification/stringtie/{sample}/final",
+        outdir=f"{STRINGTIE_NATIVE_DIR}/per_sample" + "/{sample}/final",
         extra=config.get("stringtie", {}).get("extra", "-e -B")
     log:
         "logs/stringtie/{sample}_final.log"
@@ -115,9 +116,9 @@ rule create_gene_mapping:
     Create gene ID mapping table from merged GTF file
     """
     input:
-        merged_gtf="results/04.quantification/stringtie/merged.gtf"
+        merged_gtf=f"{STRINGTIE_NATIVE_DIR}/merged/merged.gtf"
     output:
-        mapping=f"{STRINGTIE_QC_SNAPSHOT_DIR}/gene_id_mapping.tsv"
+        mapping=f"{STRINGTIE_AUDIT_DIR}/gene_id_mapping.tsv"
     conda:
         "../../envs/qc.yaml"
     log:
@@ -132,23 +133,23 @@ rule create_gene_mapping:
 
 rule aggregate_stringtie_summary:
     """
-    Aggregate StringTie results across all samples with gene ID mapping as snapshot matrices
+    Aggregate StringTie results across all samples into canonical matrices
     """
     input:
-        gtf_files=expand("results/04.quantification/stringtie/{sample}/final/transcripts.gtf", sample=SAMPLES),
-        abundance_files=expand("results/04.quantification/stringtie/{sample}/final/gene_abundances.tab", sample=SAMPLES),
-        gene_mapping=f"{STRINGTIE_QC_SNAPSHOT_DIR}/gene_id_mapping.tsv"
+        gtf_files=expand(f"{STRINGTIE_NATIVE_DIR}/per_sample" + "/{sample}/final/transcripts.gtf", sample=SAMPLES),
+        abundance_files=expand(f"{STRINGTIE_NATIVE_DIR}/per_sample" + "/{sample}/final/gene_abundances.tab", sample=SAMPLES),
+        gene_mapping=f"{STRINGTIE_AUDIT_DIR}/gene_id_mapping.tsv"
     output:
-        gene_counts=f"{STRINGTIE_SNAPSHOT_DIR}/all_samples_gene_counts_matrix.txt",
-        transcript_counts=f"{STRINGTIE_SNAPSHOT_DIR}/all_samples_transcript_counts_matrix.txt",
-        gene_tpm=f"{STRINGTIE_SNAPSHOT_DIR}/all_samples_gene_tpm_matrix.txt",
-        transcript_tpm=f"{STRINGTIE_SNAPSHOT_DIR}/all_samples_transcript_tpm_matrix.txt",
-        gene_fpkm=f"{STRINGTIE_SNAPSHOT_DIR}/all_samples_gene_fpkm_matrix.txt",
-        transcript_fpkm=f"{STRINGTIE_SNAPSHOT_DIR}/all_samples_transcript_fpkm_matrix.txt"
+        gene_counts=f"{STRINGTIE_MATRIX_DIR}/stringtie_gene_counts_matrix.tsv",
+        transcript_counts=f"{STRINGTIE_MATRIX_DIR}/stringtie_transcript_counts_matrix.tsv",
+        gene_tpm=f"{STRINGTIE_MATRIX_DIR}/stringtie_gene_tpm_matrix.tsv",
+        transcript_tpm=f"{STRINGTIE_MATRIX_DIR}/stringtie_transcript_tpm_matrix.tsv",
+        gene_fpkm=f"{STRINGTIE_MATRIX_DIR}/stringtie_gene_fpkm_matrix.tsv",
+        transcript_fpkm=f"{STRINGTIE_MATRIX_DIR}/stringtie_transcript_fpkm_matrix.tsv"
     conda:
         "../../envs/qc.yaml"
     params:
-        input_dir="results/04.quantification/stringtie",
+        input_dir=f"{STRINGTIE_NATIVE_DIR}/per_sample",
         pattern="*/final/transcripts.gtf",
         read_length=config["read_length"]
     log:
@@ -171,21 +172,21 @@ rule aggregate_stringtie_summary:
 
 rule aggregate_stringtie_original:
     """
-    Generate snapshot matrices with original gene IDs (for comparison)
+    Generate original-ID audit matrices for StringTie output inspection
     """
     input:
-        gtf_files=expand("results/04.quantification/stringtie/{sample}/final/transcripts.gtf", sample=SAMPLES),
-        abundance_files=expand("results/04.quantification/stringtie/{sample}/final/gene_abundances.tab", sample=SAMPLES),
-        gene_mapping=f"{STRINGTIE_QC_SNAPSHOT_DIR}/gene_id_mapping.tsv"
+        gtf_files=expand(f"{STRINGTIE_NATIVE_DIR}/per_sample" + "/{sample}/final/transcripts.gtf", sample=SAMPLES),
+        abundance_files=expand(f"{STRINGTIE_NATIVE_DIR}/per_sample" + "/{sample}/final/gene_abundances.tab", sample=SAMPLES),
+        gene_mapping=f"{STRINGTIE_AUDIT_DIR}/gene_id_mapping.tsv"
     output:
-        gene_counts=f"{STRINGTIE_SNAPSHOT_DIR}/gene_counts_matrix.tsv",
-        transcript_counts=f"{STRINGTIE_SNAPSHOT_DIR}/transcript_counts_matrix.tsv",
-        gene_tpm=f"{STRINGTIE_SNAPSHOT_DIR}/gene_tpm_matrix.tsv",
-        transcript_tpm=f"{STRINGTIE_SNAPSHOT_DIR}/transcript_tpm_matrix.tsv"
+        gene_counts=f"{STRINGTIE_MATRIX_DIR}/stringtie_original_gene_counts_matrix.tsv",
+        transcript_counts=f"{STRINGTIE_MATRIX_DIR}/stringtie_original_transcript_counts_matrix.tsv",
+        gene_tpm=f"{STRINGTIE_MATRIX_DIR}/stringtie_original_gene_tpm_matrix.tsv",
+        transcript_tpm=f"{STRINGTIE_MATRIX_DIR}/stringtie_original_transcript_tpm_matrix.tsv"
     conda:
         "../../envs/qc.yaml"
     params:
-        input_dir="results/04.quantification/stringtie",
+        input_dir=f"{STRINGTIE_NATIVE_DIR}/per_sample",
         pattern="*/final/transcripts.gtf",
         read_length=config["read_length"]
     log:
@@ -210,8 +211,8 @@ rule quantification_results_stringtie:
     Create symlink for main workflow compatibility
     """
     input:
-        "results/04.quantification/stringtie/{sample}/final/gene_abundances.tab"
+        f"{STRINGTIE_NATIVE_DIR}/per_sample" + "/{sample}/final/gene_abundances.tab"
     output:
         "results/quantification_results/{sample}/stringtie_abundances.tab"
     shell:
-        "mkdir -p $(dirname {output}) && ln -sf ../../04.quantification/stringtie/{wildcards.sample}/final/gene_abundances.tab {output}"
+        "mkdir -p $(dirname {output}) && ln -sf ../../04.quantification/native/stringtie/per_sample/{wildcards.sample}/final/gene_abundances.tab {output}"

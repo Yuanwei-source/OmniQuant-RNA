@@ -42,21 +42,21 @@ def main():
         quantifier="salmon",
         import_type="salmon",
         file_role="quant.sf",
-        resolver=lambda sample: f"results/04.quantification/salmon/{sample}/quant.sf",
+        resolver=lambda sample: f"results/04.quantification/native/salmon/per_sample/{sample}/quant.sf",
     )
     kallisto = build_manifest(
         samples,
         quantifier="kallisto",
         import_type="kallisto",
         file_role="abundance.tsv",
-        resolver=lambda sample: f"results/04.quantification/kallisto/{sample}/abundance.tsv",
+        resolver=lambda sample: f"results/04.quantification/native/kallisto/per_sample/{sample}/abundance.tsv",
     )
     stringtie = build_manifest(
         samples,
         quantifier="stringtie",
         import_type="stringtie",
         file_role="t_data.ctab",
-        resolver=lambda sample: f"results/04.quantification/stringtie/{sample}/final/t_data.ctab",
+        resolver=lambda sample: f"results/04.quantification/native/stringtie/per_sample/{sample}/final/t_data.ctab",
     )
 
     for path, df in [

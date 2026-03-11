@@ -1,7 +1,8 @@
 # Quantification Rules
 # Transcript quantification using Kallisto and Salmon
 
-KALLISTO_SNAPSHOT_DIR = "results/tables/raw_matrices/kallisto"
+KALLISTO_NATIVE_DIR = "results/04.quantification/native/kallisto/per_sample"
+KALLISTO_MATRIX_DIR = "results/04.quantification/matrices/kallisto"
 
 rule kallisto_index:
     """
@@ -27,13 +28,13 @@ rule kallisto_quant:
         r1="results/02.trimmed_data/{sample}_R1_trimmed.fastq.gz",
         r2="results/02.trimmed_data/{sample}_R2_trimmed.fastq.gz"
     output:
-        abundance="results/04.quantification/kallisto/{sample}/abundance.tsv",
-        h5="results/04.quantification/kallisto/{sample}/abundance.h5",
-        run_info="results/04.quantification/kallisto/{sample}/run_info.json"
+        abundance=f"{KALLISTO_NATIVE_DIR}" + "/{sample}/abundance.tsv",
+        h5=f"{KALLISTO_NATIVE_DIR}" + "/{sample}/abundance.h5",
+        run_info=f"{KALLISTO_NATIVE_DIR}" + "/{sample}/run_info.json"
     conda:
         "../../envs/quantification.yaml"
     params:
-        outdir="results/04.quantification/kallisto/{sample}",
+        outdir=f"{KALLISTO_NATIVE_DIR}" + "/{sample}",
         bootstrap=config.get("kallisto", {}).get("bootstrap", 100),
         extra=config.get("kallisto", {}).get("extra", "")
     log:
@@ -52,18 +53,18 @@ rule kallisto_quant:
 
 rule aggregate_kallisto_summary:
     """
-    Aggregate Kallisto results across all samples as snapshot matrices
+    Aggregate Kallisto results across all samples into canonical matrices
     """
     input:
-        expand("results/04.quantification/kallisto/{sample}/abundance.tsv", sample=SAMPLES)
+        expand(f"{KALLISTO_NATIVE_DIR}" + "/{sample}/abundance.tsv", sample=SAMPLES)
     output:
-        counts=f"{KALLISTO_SNAPSHOT_DIR}/all_samples_counts_matrix.txt",
-        tpm=f"{KALLISTO_SNAPSHOT_DIR}/all_samples_tpm_matrix.txt"
+        counts=f"{KALLISTO_MATRIX_DIR}/kallisto_transcript_counts_matrix.tsv",
+        tpm=f"{KALLISTO_MATRIX_DIR}/kallisto_transcript_tpm_matrix.tsv"
     conda:
         "../../envs/qc.yaml"
     params:
         samples=SAMPLES,
-        input_dir="results/04.quantification/kallisto"
+        input_dir=KALLISTO_NATIVE_DIR
     log:
         "logs/kallisto/aggregate_summary.log"
     shell:
@@ -81,8 +82,8 @@ rule kallisto_quantification_results:
     Create symlink for main workflow compatibility
     """
     input:
-        "results/04.quantification/kallisto/{sample}/abundance.tsv"
+        f"{KALLISTO_NATIVE_DIR}" + "/{sample}/abundance.tsv"
     output:
         "results/quantification_results/{sample}/abundance.tsv"
     shell:
-        "mkdir -p $(dirname {output}) && ln -sf ../../04.quantification/kallisto/{wildcards.sample}/abundance.tsv {output}"
+        "mkdir -p $(dirname {output}) && ln -sf ../../04.quantification/native/kallisto/per_sample/{wildcards.sample}/abundance.tsv {output}"

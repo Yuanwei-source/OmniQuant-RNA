@@ -15,6 +15,7 @@ def main():
     parser.add_argument('--output-counts', required=True, help='Output counts matrix file')
     
     args = parser.parse_args()
+    Path(args.output_counts).parent.mkdir(parents=True, exist_ok=True)
     
     # Initialize lists to store data
     counts_data = []

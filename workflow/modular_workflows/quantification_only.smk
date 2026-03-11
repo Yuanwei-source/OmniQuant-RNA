@@ -79,8 +79,8 @@ include: "../rules/quantification_salmon.smk"
 rule all_quantification:
     input:
         # Kallisto results
-        expand("results/quantification/kallisto/{sample}/abundance.tsv", sample=SAMPLES),
+        expand("results/04.quantification/native/kallisto/per_sample/{sample}/abundance.tsv", sample=SAMPLES),
         # Salmon results  
-        expand("results/quantification/salmon/{sample}/quant.sf", sample=SAMPLES),
+        expand("results/04.quantification/native/salmon/per_sample/{sample}/quant.sf", sample=SAMPLES),
         # Compatibility symlinks
         expand("results/quantification/{sample}/abundance.tsv", sample=SAMPLES)

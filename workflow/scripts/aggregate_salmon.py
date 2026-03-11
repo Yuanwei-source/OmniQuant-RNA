@@ -39,6 +39,12 @@ def main():
     parser.add_argument('--gtf', help='GTF file for transcript to gene mapping')
     
     args = parser.parse_args()
+    Path(args.output_transcript_counts).parent.mkdir(parents=True, exist_ok=True)
+    Path(args.output_transcript_tpm).parent.mkdir(parents=True, exist_ok=True)
+    if args.output_gene_counts:
+        Path(args.output_gene_counts).parent.mkdir(parents=True, exist_ok=True)
+    if args.output_gene_tpm:
+        Path(args.output_gene_tpm).parent.mkdir(parents=True, exist_ok=True)
     
     # Initialize lists to store data
     counts_data = []

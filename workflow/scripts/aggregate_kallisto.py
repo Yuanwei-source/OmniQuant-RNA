@@ -16,6 +16,8 @@ def main():
     parser.add_argument('--output-tpm', required=True, help='Output TPM matrix file')
     
     args = parser.parse_args()
+    Path(args.output_counts).parent.mkdir(parents=True, exist_ok=True)
+    Path(args.output_tpm).parent.mkdir(parents=True, exist_ok=True)
     
     # Initialize lists to store data
     counts_data = []

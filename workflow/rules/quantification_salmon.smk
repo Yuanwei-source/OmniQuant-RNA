@@ -1,7 +1,8 @@
 # Quantification Rules
 # Transcript quantification using Kallisto and Salmon
 
-SALMON_SNAPSHOT_DIR = "results/tables/raw_matrices/salmon"
+SALMON_NATIVE_DIR = "results/04.quantification/native/salmon/per_sample"
+SALMON_MATRIX_DIR = "results/04.quantification/matrices/salmon"
 
 rule salmon_index:
     """
@@ -37,11 +38,11 @@ rule salmon_quant:
         r1="results/02.trimmed_data/{sample}_R1_trimmed.fastq.gz",
         r2="results/02.trimmed_data/{sample}_R2_trimmed.fastq.gz"
     output:
-        "results/04.quantification/salmon/{sample}/quant.sf"
+        f"{SALMON_NATIVE_DIR}" + "/{sample}/quant.sf"
     conda:
         "../../envs/quantification.yaml"
     params:
-        outdir="results/04.quantification/salmon/{sample}",
+        outdir=f"{SALMON_NATIVE_DIR}" + "/{sample}",
         extra=config.get("salmon", {}).get("extra", "")
     log:
         "logs/salmon/{sample}.log"
@@ -57,21 +58,21 @@ rule salmon_quant:
 
 rule aggregate_salmon_summary:
     """
-    Aggregate Salmon results across all samples as snapshot matrices
+    Aggregate Salmon results across all samples into canonical matrices
     """
     input:
-        quant_files=expand("results/04.quantification/salmon/{sample}/quant.sf", sample=SAMPLES),
+        quant_files=expand(f"{SALMON_NATIVE_DIR}" + "/{sample}/quant.sf", sample=SAMPLES),
         gtf=config["reference"]["gtf"]
     output:
-        transcript_counts=f"{SALMON_SNAPSHOT_DIR}/all_samples_transcript_counts_matrix.txt",
-        transcript_tpm=f"{SALMON_SNAPSHOT_DIR}/all_samples_transcript_tpm_matrix.txt",
-        gene_counts=f"{SALMON_SNAPSHOT_DIR}/all_samples_gene_counts_matrix.txt",
-        gene_tpm=f"{SALMON_SNAPSHOT_DIR}/all_samples_gene_tpm_matrix.txt"
+        transcript_counts=f"{SALMON_MATRIX_DIR}/salmon_transcript_counts_matrix.tsv",
+        transcript_tpm=f"{SALMON_MATRIX_DIR}/salmon_transcript_tpm_matrix.tsv",
+        gene_counts=f"{SALMON_MATRIX_DIR}/salmon_gene_counts_matrix.tsv",
+        gene_tpm=f"{SALMON_MATRIX_DIR}/salmon_gene_tpm_matrix.tsv"
     conda:
         "../../envs/qc.yaml"
     params:
         samples=SAMPLES,
-        input_dir="results/04.quantification/salmon"
+        input_dir=SALMON_NATIVE_DIR
     log:
         "logs/salmon/aggregate_summary.log"
     shell:
@@ -92,8 +93,8 @@ rule quantification_results_salmon:
     Create symlink for main workflow compatibility (Salmon version)
     """
     input:
-        "results/04.quantification/salmon/{sample}/quant.sf"
+        f"{SALMON_NATIVE_DIR}" + "/{sample}/quant.sf"
     output:
         "results/quantification_results/{sample}/quant.sf"
     shell:
-        "mkdir -p $(dirname {output}) && ln -sf ../../04.quantification/salmon/{wildcards.sample}/quant.sf {output}"
+        "mkdir -p $(dirname {output}) && ln -sf ../../04.quantification/native/salmon/per_sample/{wildcards.sample}/quant.sf {output}"
