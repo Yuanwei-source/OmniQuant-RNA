@@ -1,0 +1,10 @@
+name: decontam
+
+channels:
+  - https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge
+  - https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/bioconda
+
+dependencies:
+  - python>=3.10
+  - pandas>=1.5
+  - xopen>=2.0

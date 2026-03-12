@@ -4,7 +4,7 @@ import subprocess
 import sys
 
 # Configuration file
-configfile: "../../config/config.yaml"
+configfile: "config/config.yaml"
 
 # Sample information
 samples_df = pd.read_csv(config["samples"], sep="\t").set_index("sample", drop=False)
@@ -76,10 +76,10 @@ include: "../rules/quantification_stringtie.smk"
 rule all:
     input:
         # StringTie outputs
-        expand("results/04.quantification/native/stringtie/per_sample/{sample}/assembly/transcripts.gtf", sample=samples),
-        expand("results/04.quantification/native/stringtie/per_sample/{sample}/assembly/gene_abundances.tab", sample=samples),
+        expand("results/04.quantification/native/stringtie/per_sample/{sample}/assembly/transcripts.gtf", sample=SAMPLES),
+        expand("results/04.quantification/native/stringtie/per_sample/{sample}/assembly/gene_abundances.tab", sample=SAMPLES),
         "results/04.quantification/native/stringtie/merged/merged.gtf",
-        expand("results/04.quantification/native/stringtie/per_sample/{sample}/final/transcripts.gtf", sample=samples),
-        expand("results/04.quantification/native/stringtie/per_sample/{sample}/final/gene_abundances.tab", sample=samples),
+        expand("results/04.quantification/native/stringtie/per_sample/{sample}/final/transcripts.gtf", sample=SAMPLES),
+        expand("results/04.quantification/native/stringtie/per_sample/{sample}/final/gene_abundances.tab", sample=SAMPLES),
         # Compatibility outputs
-        expand("results/quantification/{sample}/stringtie_abundances.tab", sample=samples)
+        expand("results/quantification/{sample}/stringtie_abundances.tab", sample=SAMPLES)

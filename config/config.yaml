@@ -18,6 +18,9 @@ reference:
 # Conda environments
 conda_env:
   qc: "envs/qc.yaml"
+  decontam: "envs/decontam.yaml"
+  decontam_bowtie2: "envs/decontam_bowtie2.yaml"
+  decontam_kraken2: "envs/decontam_kraken2.yaml"
   alignment: "envs/alignment.yaml"
   quantification: "envs/quantification.yaml"
   featurecounts: "envs/featurecounts.yaml"
@@ -40,6 +43,45 @@ fastp:
   trim_tail1: 0
   trim_tail2: 0
   length_required: 35  # minimum read length
+
+# Optional decontamination module
+decontam:
+  enabled: true
+  mode: "conservative"
+  pair_policy: "host_or_ercc_rescues_pair"
+  prescreen:
+    engine: "bowtie2"
+    max_insert: 1000
+    extra: ""
+  host_rescue:
+    engine: "bowtie2"
+    max_insert: 1000
+    extra: ""
+  references:
+    host_genome: "data/reference/genome.fasta"
+    host_transcriptome: "data/reference/transcriptome.fasta"
+    ercc: "/mnt/nas/Database/decontam_references/ercc/ERCC92.fa"
+    technical_contam:
+      - "/mnt/nas/Database/decontam_references/technical/bootstrap_contam_seed.fa"
+    nearby_species: []
+  classifier:
+    name: "k2"
+    db: "/mnt/nas/Database/k2_pluspfp_08_GB_20260226"
+    threads: 32
+    confidence: 0.3
+    minimum_hit_groups: 3
+    report_minimizer_data: true
+    memory_mapping: true
+  policy:
+    retain_unclassified: true
+    ecological_as_uncertain: true
+    nontarget_taxids: [9606, 4751, 33090, 4932]
+    uncertain_taxids: [2, 953, 6231, 6854, 6656, 10239]
+  outputs:
+    keep_audit_fastq: true
+    export_symbiont_bins: false
+  validation:
+    compare_mapping_rates: true
 
 # Alignment method selection
 aligner: "hisat2"  # Choose "hisat2" or "star"

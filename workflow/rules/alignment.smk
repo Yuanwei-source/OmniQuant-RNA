@@ -50,8 +50,8 @@ rule hisat2_align:
     Align reads to reference genome using HISAT2
     """
     input:
-        r1="results/02.trimmed_data/{sample}_R1_trimmed.fastq.gz",
-        r2="results/02.trimmed_data/{sample}_R2_trimmed.fastq.gz",
+        r1=get_analysis_r1,
+        r2=get_analysis_r2,
         index="data/reference/hisat2_index"
     output:
         bam="results/03.alignment/hisat2/{sample}.bam",
@@ -104,8 +104,8 @@ rule star_align:
     Align reads to reference genome using STAR
     """
     input:
-        r1="results/02.trimmed_data/{sample}_R1_trimmed.fastq.gz",
-        r2="results/02.trimmed_data/{sample}_R2_trimmed.fastq.gz",
+        r1=get_analysis_r1,
+        r2=get_analysis_r2,
         index="data/reference/star_index"
     output:
         bam="results/03.alignment/star/{sample}.bam",

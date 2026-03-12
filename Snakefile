@@ -136,6 +136,45 @@ def get_fastqc_alias_path(sample, read_label, source_path):
     suffix = get_fastq_suffix(source_path)
     return os.path.join(".snakemake", "fastqc_aliases", sample, f"{sample}_{read_label}{suffix}")
 
+
+def decontam_enabled():
+    return bool(config.get("decontam", {}).get("enabled", False))
+
+
+def get_analysis_reads(wildcards):
+    if decontam_enabled():
+        return {
+            "r1": f"results/02.5.decontam/clean/{wildcards.sample}_R1_clean.fastq.gz",
+            "r2": f"results/02.5.decontam/clean/{wildcards.sample}_R2_clean.fastq.gz",
+        }
+
+    return {
+        "r1": f"results/02.trimmed_data/{wildcards.sample}_R1_trimmed.fastq.gz",
+        "r2": f"results/02.trimmed_data/{wildcards.sample}_R2_trimmed.fastq.gz",
+    }
+
+
+def get_analysis_r1(wildcards):
+    return get_analysis_reads(wildcards)["r1"]
+
+
+def get_analysis_r2(wildcards):
+    return get_analysis_reads(wildcards)["r2"]
+
+
+def get_decontam_all_targets(samples):
+    if not decontam_enabled():
+        return []
+
+    return [
+        expand("results/02.5.decontam/clean/{sample}_R1_clean.fastq.gz", sample=samples),
+        expand("results/02.5.decontam/clean/{sample}_R2_clean.fastq.gz", sample=samples),
+        expand("results/02.5.decontam/stats/{sample}_decision_summary.tsv", sample=samples),
+        expand("results/02.5.decontam/qc/{sample}_{read}_clean_fastqc.html", sample=samples, read=["R1", "R2"]),
+        expand("results/02.5.decontam/qc/{sample}_{read}_clean_fastqc.zip", sample=samples, read=["R1", "R2"]),
+        "results/02.5.decontam/stats/project_decontam_summary.tsv",
+    ]
+
 # Define alignment output paths based on selected aligner
 def get_alignment_outputs(samples):
     if ALIGNER == "hisat2":
@@ -156,6 +195,7 @@ ALIGNMENT_OUTPUTS = get_alignment_outputs(SAMPLES)
 # Include all modular rules
 include: "workflow/rules/annotation_conversion.smk"
 include: "workflow/rules/qc.smk"
+include: "workflow/rules/decontam.smk"
 include: "workflow/rules/alignment.smk"
 include: "workflow/rules/reference_namespace.smk"
 include: "workflow/rules/quantification_kallisto.smk"
@@ -194,6 +234,9 @@ rule all:
         
         # Post-trimming quality control
         expand("results/02.trimmed_data/{sample}_{read}_trimmed_fastqc.html", sample=SAMPLES, read=["R1", "R2"]),
+
+        # Optional decontamination outputs
+        get_decontam_all_targets(SAMPLES),
         
         # Reference indices
         "data/reference/kallisto_index/transcriptome.idx",
@@ -265,7 +308,8 @@ rule qc_only:
     input:
         expand("results/01.raw_qc/{sample}_{read}_fastqc.html", sample=SAMPLES, read=["R1", "R2"]),
         expand("results/02.trimmed_data/{sample}_{read}_trimmed.fastq.gz", sample=SAMPLES, read=["R1", "R2"]),
-        expand("results/02.trimmed_data/{sample}_{read}_trimmed_fastqc.html", sample=SAMPLES, read=["R1", "R2"])
+        expand("results/02.trimmed_data/{sample}_{read}_trimmed_fastqc.html", sample=SAMPLES, read=["R1", "R2"]),
+        get_decontam_all_targets(SAMPLES)
 
 rule stringtie_only:
     """Run only StringTie quantification with original gene IDs"""
@@ -280,7 +324,7 @@ rule stringtie_only:
 rule alignment_only:
     """Run quality control and alignment only"""
     input:
-        expand("results/02.trimmed_data/{sample}_{read}_trimmed.fastq.gz", sample=SAMPLES, read=["R1", "R2"]),
+        get_decontam_all_targets(SAMPLES),
         expand("results/03.alignment/{sample}.bam", sample=SAMPLES),
         expand("results/03.alignment/{sample}.bam.bai", sample=SAMPLES)
 

@@ -16,6 +16,7 @@ show_usage() {
     echo "可用模块:"
     echo "  all                    - 运行完整工作流"
     echo "  qc                     - 只运行质量控制"
+    echo "  decontam               - 只运行去污染骨架模块"
     echo "  quantification         - 只运行定量阶段，输出到 results/04.quantification/{native,matrices,audit}"
     echo "  alignment              - 只运行序列比对"
     echo "  differential_expression- 只运行差异表达分析 (简写: dea)，读取 04.quantification 正式输入"
@@ -46,7 +47,7 @@ while [[ $# -gt 0 ]]; do
             show_usage
             exit 0
             ;;
-        all|qc|quantification|alignment|differential_expression|dea|dry-run)
+        all|qc|decontam|quantification|alignment|differential_expression|dea|dry-run)
             MODULE="$1"
             shift
             ;;
@@ -78,6 +79,10 @@ case $MODULE in
         echo "运行质量控制模块..."
         snakemake -s workflow/modular_workflows/qc_only.smk $CONDA_ARGS --cores $CORES --printshellcmds
         ;;
+    decontam)
+        echo "运行去污染模块..."
+        snakemake -s workflow/modular_workflows/decontam_only.smk $CONDA_ARGS --cores $CORES --printshellcmds
+        ;;
     quantification)
         echo "运行定量阶段模块..."
         echo "输出目录: results/04.quantification/{native,matrices,audit}"
@@ -99,6 +104,8 @@ case $MODULE in
         echo "各模块检查:"
         echo "- QC模块:"
         snakemake -s workflow/modular_workflows/qc_only.smk $CONDA_ARGS --dry-run
+        echo "- 去污染模块:"
+        snakemake -s workflow/modular_workflows/decontam_only.smk $CONDA_ARGS --dry-run
         echo "- 定量模块:"
         snakemake -s workflow/modular_workflows/quantification_only.smk $CONDA_ARGS --dry-run
         echo "- 差异表达模块:"

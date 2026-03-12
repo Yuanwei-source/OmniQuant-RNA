@@ -25,8 +25,8 @@ rule kallisto_quant:
     """
     input:
         index="data/reference/kallisto_index/transcriptome.idx",
-        r1="results/02.trimmed_data/{sample}_R1_trimmed.fastq.gz",
-        r2="results/02.trimmed_data/{sample}_R2_trimmed.fastq.gz"
+        r1=get_analysis_r1,
+        r2=get_analysis_r2
     output:
         abundance=f"{KALLISTO_NATIVE_DIR}" + "/{sample}/abundance.tsv",
         h5=f"{KALLISTO_NATIVE_DIR}" + "/{sample}/abundance.h5",

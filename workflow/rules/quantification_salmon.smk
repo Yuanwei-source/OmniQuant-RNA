@@ -35,8 +35,8 @@ rule salmon_quant:
     """
     input:
         index="data/reference/salmon_index",
-        r1="results/02.trimmed_data/{sample}_R1_trimmed.fastq.gz",
-        r2="results/02.trimmed_data/{sample}_R2_trimmed.fastq.gz"
+        r1=get_analysis_r1,
+        r2=get_analysis_r2
     output:
         f"{SALMON_NATIVE_DIR}" + "/{sample}/quant.sf"
     conda:

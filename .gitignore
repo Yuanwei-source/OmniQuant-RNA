@@ -17,6 +17,7 @@ data/fastq/*.gz
 results/
 logs/
 benchmarks/
+local_benchmarks/
 results/04.quantification/stringtie/gene_counts_matrix.tsv
 results/04.quantification/stringtie/gene_tpm_matrix.tsv
 results/04.quantification/stringtie/transcript_counts_matrix.tsv
