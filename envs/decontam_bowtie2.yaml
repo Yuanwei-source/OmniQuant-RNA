@@ -7,4 +7,6 @@ channels:
 dependencies:
   - python>=3.10
   - bowtie2>=2.5.5
+  - samtools>=1.18
+  - seqkit>=2.5
   - seqkit>=2.8

@@ -38,6 +38,61 @@ def get_reference_list(key):
     return list(value)
 
 
+rule decontam_audit_reference_genome:
+    """
+    Pre-check the host reference genome to identify scaffolds/contigs that are primarily microbial 
+    (e.g., Wolbachia embedded in an insect genome). Generates a blacklist for downstream warnings.
+    """
+    input:
+        genome=lambda wildcards: get_decontam_reference("host_genome", config["reference"]["genome"])
+    output:
+        kraken_out=temp(f"{DECONTAM_REF_DIR}/reference_audit.kraken.out"),
+        report=f"{DECONTAM_REF_DIR}/reference_audit.kraken.report.tsv",
+        blacklist=f"{DECONTAM_REF_DIR}/contam_scaffolds_blacklist.tsv"
+    log:
+        "logs/decontam/audit_reference_genome.log"
+    benchmark:
+        "benchmarks/decontam/audit_reference_genome.tsv"
+    conda:
+        "../../envs/decontam_kraken2.yaml"
+    threads: CLASSIFIER_THREADS
+    resources:
+        mem_mb=8000
+    params:
+        db=CLASSIFIER_DB,
+        nontarget_taxids=",".join(map(str, DECONTAM_CONFIG.get("policy", {}).get("nontarget_taxids", []))),
+        uncertain_taxids=",".join(map(str, DECONTAM_CONFIG.get("policy", {}).get("uncertain_taxids", [])))
+    shell:
+        """
+        mkdir -p {DECONTAM_REF_DIR} $(dirname {log}) benchmarks/decontam
+        
+        if [ -n "{params.db}" ] && [ -f "{params.db}/hash.k2d" ]; then
+            k2 classify \
+                --db {params.db} \
+                --threads {threads} \
+                --use-names \
+                --output {output.kraken_out} \
+                --report {output.report} \
+                {input.genome} >> {log} 2>&1
+                
+            TAXIDS="{params.nontarget_taxids},{params.uncertain_taxids}"
+            # Remove leading/trailing commas if any
+            TAXIDS=$(echo "$TAXIDS" | sed 's/^,//;s/,$//;s/,,/,/g')
+            
+            echo -e "Scaffold_ID\tLength\tTaxID\tContam_Status" > {output.blacklist}
+            if [ -n "$TAXIDS" ]; then
+                taxonkit list --data-dir {params.db}/taxonomy --ids "$TAXIDS" > {output.kraken_out}.taxids 2>>{log} || touch {output.kraken_out}.taxids
+                awk 'FNR==NR {{bad[$1]; next}} {{if ( ($3 in bad) ) print $2"\\t"$4"\\t"$3"\\tContam"}}' {output.kraken_out}.taxids {output.kraken_out} >> {output.blacklist}
+                rm -f {output.kraken_out}.taxids
+            fi
+        else
+            touch {output.kraken_out} {output.report} {output.blacklist}
+            echo "Scaffold_ID\tLength\tTaxID\tContam_Status" > {output.blacklist}
+        fi
+        printf "[decontam_audit_reference_genome] audited reference genome\n" >> {log}
+        """
+
+
 rule decontam_prepare_host_reference:
     """
     Build the consolidated host rescue reference for Bowtie2.
@@ -177,7 +232,7 @@ rule decontam_prescreen:
             -1 {input.r1} -2 {input.r2} \
             --al-conc-gz "$tmpdir/technical_mapped_%.fq.gz" \
             --no-mixed --no-discordant \
-            --very-sensitive-local \
+            --sensitive-local \
             -X {params.max_insert} \
             -p {threads} \
             {params.extra} \
@@ -186,23 +241,13 @@ rule decontam_prescreen:
         if [ -f "$tmpdir/technical_mapped_1.fq.gz" ] && [ -f "$tmpdir/technical_mapped_2.fq.gz" ]; then
             seqkit seq -n "$tmpdir/technical_mapped_1.fq.gz" "$tmpdir/technical_mapped_2.fq.gz" | awk '{{print $1}}' | LC_ALL=C sort -u | gzip -c > {output.tech_ids}
         else
-            python - <<'PY'
-import gzip
-with gzip.open("{output.tech_ids}", "wt") as handle:
-    handle.write("# read_id\\n")
-PY
+            echo "# read_id" | gzip -c > {output.tech_ids}
         fi
 
-        python - <<'PY'
-import gzip
-
-with gzip.open("{output.tech_ids}", "rt") as handle:
-    matched_pairs = sum(1 for line in handle if line.strip() and not line.startswith("#"))
-
-with open("{output.stats}", "w") as handle:
-    handle.write("sample\tstage\tmatched_pairs\\n")
-    handle.write("{wildcards.sample}\tprescreen\t{{matched_pairs}}\\n".format(matched_pairs=matched_pairs))
-PY
+        matched_pairs=$(zcat {output.tech_ids} | awk '!/^#/' | wc -l)
+        
+        echo -e "sample\\tstage\\tmatched_pairs" > {output.stats}
+        echo -e "{wildcards.sample}\\tprescreen\\t${{matched_pairs}}" >> {output.stats}
         printf "[decontam_prescreen] collected technical contamination evidence for %s\n" {wildcards.sample} > {log}
         """
 
@@ -247,35 +292,18 @@ rule decontam_host_rescue:
         bowtie2 \
             -x {params.host_index_prefix} \
             -1 {input.r1} -2 {input.r2} \
-            --al-conc-gz "$tmpdir/host_mapped_%.fq.gz" \
-            --un-conc-gz "$tmpdir/unresolved_%.fq.gz" \
             --no-mixed --no-discordant \
-            --very-sensitive-local \
+            --sensitive \
             -X {params.max_insert} \
             -p {threads} \
-            {params.extra} \
-            -S /dev/null >> {log} 2>&1
-
-        if [ -f "$tmpdir/unresolved_1.fq.gz" ] && [ -f "$tmpdir/unresolved_2.fq.gz" ]; then
-            mv "$tmpdir/unresolved_1.fq.gz" {output.unresolved_r1}
-            mv "$tmpdir/unresolved_2.fq.gz" {output.unresolved_r2}
-        else
-            python - <<'PY'
-import gzip
-gzip.open("{output.unresolved_r1}", "wt").close()
-gzip.open("{output.unresolved_r2}", "wt").close()
-PY
-        fi
-
-        if [ -f "$tmpdir/host_mapped_1.fq.gz" ] && [ -f "$tmpdir/host_mapped_2.fq.gz" ]; then
-            seqkit seq -n "$tmpdir/host_mapped_1.fq.gz" "$tmpdir/host_mapped_2.fq.gz" | awk '{{print $1}}' | LC_ALL=C sort -u | gzip -c > {output.host_ids}
-        else
-            python - <<'PY'
-import gzip
-with gzip.open("{output.host_ids}", "wt") as handle:
-    handle.write("# read_id\\n")
-PY
-        fi
+            {params.extra} 2>> {log} | \
+        samtools view -e '[NM]<=5 && mapq>=10' -f 2 - | \
+        cut -f1 | uniq -c | awk '$1==2 {{print $2}}' > "$tmpdir/host_ids.raw"
+        
+        gzip -c "$tmpdir/host_ids.raw" > {output.host_ids}
+        
+        seqkit grep -v -f "$tmpdir/host_ids.raw" {input.r1} -o {output.unresolved_r1}
+        seqkit grep -v -f "$tmpdir/host_ids.raw" {input.r2} -o {output.unresolved_r2}
 
         if [ -n "{params.ercc_reference}" ] && [ -s "{params.ercc_reference}" ]; then
             ercc_prefix="$tmpdir/ercc_index"
@@ -285,7 +313,7 @@ PY
                 -1 {input.r1} -2 {input.r2} \
                 --al-conc-gz "$tmpdir/ercc_mapped_%.fq.gz" \
                 --no-mixed --no-discordant \
-                --very-sensitive-local \
+                --sensitive \
                 -X {params.max_insert} \
                 -p {threads} \
                 -S /dev/null >> {log} 2>&1
@@ -293,43 +321,19 @@ PY
             if [ -f "$tmpdir/ercc_mapped_1.fq.gz" ] && [ -f "$tmpdir/ercc_mapped_2.fq.gz" ]; then
                 seqkit seq -n "$tmpdir/ercc_mapped_1.fq.gz" "$tmpdir/ercc_mapped_2.fq.gz" | awk '{{print $1}}' | LC_ALL=C sort -u | gzip -c > {output.ercc_ids}
             else
-                python - <<'PY'
-import gzip
-with gzip.open("{output.ercc_ids}", "wt") as handle:
-    handle.write("# read_id\\n")
-PY
+                echo "# read_id" | gzip -c > {output.ercc_ids}
             fi
         else
-            python - <<'PY'
-import gzip
-with gzip.open("{output.ercc_ids}", "wt") as handle:
-    handle.write("# read_id\\n")
-PY
+            echo "# read_id" | gzip -c > {output.ercc_ids}
         fi
 
-        python - <<'PY'
-import gzip
-
-def count_ids(path):
-    with gzip.open(path, "rt") as handle:
-        return sum(1 for line in handle if line.strip() and not line.startswith("#"))
-
-def count_fastq_records(path):
-    with gzip.open(path, "rt") as handle:
-        return sum(1 for _ in handle) // 4
-
-host_pairs = count_ids("{output.host_ids}")
-ercc_pairs = count_ids("{output.ercc_ids}")
-unresolved_pairs = count_fastq_records("{output.unresolved_r1}")
-
-with open("{output.stats}", "w") as handle:
-    handle.write("sample\tstage\thost_pairs\tercc_pairs\tunresolved_pairs\\n")
-    handle.write("{wildcards.sample}\thost_rescue\t{{host_pairs}}\t{{ercc_pairs}}\t{{unresolved_pairs}}\\n".format(
-        host_pairs=host_pairs,
-        ercc_pairs=ercc_pairs,
-        unresolved_pairs=unresolved_pairs,
-    ))
-PY
+        host_pairs=$(zcat {output.host_ids} | awk '!/^#/' | wc -l)
+        ercc_pairs=$(zcat {output.ercc_ids} | awk '!/^#/' | wc -l)
+        unresolved_pairs=$(echo $(($(zcat {output.unresolved_r1} | wc -l) / 4)))
+        
+        echo -e "sample\\tstage\\thost_pairs\\tercc_pairs\\tunresolved_pairs" > {output.stats}
+        echo -e "{wildcards.sample}\\thost_rescue\\t${{host_pairs}}\\t${{ercc_pairs}}\\t${{unresolved_pairs}}" >> {output.stats}
+        
         printf "[decontam_host_rescue] collected Bowtie2 rescue evidence for %s\n" {wildcards.sample} >> {log}
         """
 
@@ -346,10 +350,10 @@ rule decontam_classify_unresolved:
         host_ids=f"{DECONTAM_TMP_DIR}" + "/{sample}.host_ids.txt.gz",
         ercc_ids=f"{DECONTAM_TMP_DIR}" + "/{sample}.ercc_ids.txt.gz"
     output:
-        kraken_output=temp(f"{DECONTAM_TMP_DIR}" + "/{sample}.kraken.out"),
-        report=temp(f"{DECONTAM_TMP_DIR}" + "/{sample}.kraken.report.tsv"),
-        nontarget_ids=temp(f"{DECONTAM_TMP_DIR}" + "/{sample}.nontarget_ids.txt.gz"),
-        uncertain_ids=temp(f"{DECONTAM_TMP_DIR}" + "/{sample}.uncertain_ids.txt.gz"),
+        kraken_output=f"{DECONTAM_TMP_DIR}" + "/{sample}.kraken.out",
+        report=f"{DECONTAM_TMP_DIR}" + "/{sample}.kraken.report.tsv",
+        nontarget_ids=f"{DECONTAM_TMP_DIR}" + "/{sample}.nontarget_ids.txt.gz",
+        uncertain_ids=f"{DECONTAM_TMP_DIR}" + "/{sample}.uncertain_ids.txt.gz",
         stats=f"{DECONTAM_STATS_DIR}" + "/{sample}_classification_stats.tsv"
     log:
         "logs/decontam/{sample}_classification.log"
@@ -398,17 +402,56 @@ rule decontam_classify_unresolved:
             : > {output.report}
         fi
 
-        python workflow/scripts/parse_kraken_classification.py \
-            --kraken-output {output.kraken_output} \
-            --nodes-file {params.db}/taxo.k2d \
-            --taxonomy-nodes {params.db}/taxonomy/nodes.dmp \
-            --sample {wildcards.sample} \
-            --nontarget-taxids '{params.nontarget_taxids}' \
-            --uncertain-taxids '{params.uncertain_taxids}' \
-            --ecological-as-uncertain {params.ecological_as_uncertain} \
-            --output-nontarget {output.nontarget_ids} \
-            --output-uncertain {output.uncertain_ids} \
-            --output-stats {output.stats} >> {log} 2>&1
+        # Not using python script anymore. Use taxonkit + awk natively.
+        
+        NONTARGET=$(echo '{params.nontarget_taxids}' | sed 's/[][ '\'\"']//g')
+        UNCERTAIN=$(echo '{params.uncertain_taxids}' | sed 's/[][ '\'\"']//g')
+        
+        if [ -n "$NONTARGET" ] && [ -n "{params.db}" ]; then
+            taxonkit list --data-dir {params.db}/taxonomy --ids "$NONTARGET" > $tmpdir/nontarget.taxids 2>/dev/null || touch $tmpdir/nontarget.taxids
+        else
+            touch $tmpdir/nontarget.taxids
+        fi
+        
+        if [ -n "$UNCERTAIN" ] && [ -n "{params.db}" ]; then
+            taxonkit list --data-dir {params.db}/taxonomy --ids "$UNCERTAIN" > $tmpdir/uncertain.taxids 2>/dev/null || touch $tmpdir/uncertain.taxids
+        else
+            touch $tmpdir/uncertain.taxids
+        fi
+
+        # Process standard kraken output and categorize IDs directly
+        awk '
+            BEGIN {{FS="\\t"; OFS="\\t"}}
+            FNR==NR {{ n[$1]; next }}  # nontarget taxids
+            FNR==NR+1 {{ u[$1]; next }}  # uncertain taxids
+            {{
+                status=$1; qname=$2; taxid=$3
+                
+                # strip kraken suffix if present (/1 or /2)
+                sub(/\\/[12]$/, "", qname)
+                
+                id_type = ""
+                if (status == "C") {{
+                    class_count++
+                    if (taxid in n) {{
+                        print qname > "'$tmpdir/nontarget_ids.txt'"
+                        n_count++
+                    }} else if (taxid in u && "{params.ecological_as_uncertain}" == "True") {{
+                        print qname > "'$tmpdir/uncertain_ids.txt'"
+                        u_count++
+                    }}
+                }} else {{
+                    unclass_count++
+                }}
+            }}
+            END {{
+                print "sample\\tstage\\tclassified_pairs\\tunclassified_pairs\\tnontarget_pairs\\tuncertain_pairs" > "{output.stats}"
+                printf "%s\\tclassification\\t%d\\t%d\\t%d\\t%d\\n", "{wildcards.sample}", class_count+0, unclass_count+0, n_count+0, u_count+0 > "{output.stats}"
+            }}
+        ' $tmpdir/nontarget.taxids $tmpdir/uncertain.taxids {output.kraken_output}
+        
+        [ -f $tmpdir/nontarget_ids.txt ] && sort -u $tmpdir/nontarget_ids.txt | gzip -c > {output.nontarget_ids} || echo "# read_id" | gzip -c > {output.nontarget_ids}
+        [ -f $tmpdir/uncertain_ids.txt ] && sort -u $tmpdir/uncertain_ids.txt | gzip -c > {output.uncertain_ids} || echo "# read_id" | gzip -c > {output.uncertain_ids}
 
         printf "[decontam_classify_unresolved] collected k2 classification evidence for %s\n" {wildcards.sample} >> {log}
         """
@@ -451,8 +494,66 @@ rule decontam_pair_decision:
         keep_audit_fastq=decontam_audit_enabled()
     conda:
         "../../envs/decontam.yaml"
-    script:
-        "../scripts/decontam_pair_decision.py"
+    shell:
+        """
+        mkdir -p $(dirname {output.clean_r1}) $(dirname {output.uncertain_r1}) $(dirname {output.removed_r1}) $(dirname {output.summary})
+
+        # 1. Determine read ID sets using awk
+        # Priority: ERCC > Host > Tech > NonTarget > Uncertain
+        # If a read ID string is in a higher priority, we ignore it in lower ones.
+        
+        # We need a clean fastq: ERCC + Host + (Uncertain if retain_unclassified=True)
+        # We need to filter the FASTQ files using seqkit.
+        
+        # We use a single awk pass over all ID files to figure out the fate of EVERY read pair reported.
+        echo -e "sample\\tRetained_Host\\tRetained_ERCC\\tRetained_Uncertain\\tRemoved_Tech\\tRemoved_NonTarget" > {output.summary}
+        
+        tmpdir=$(mktemp -d {DECONTAM_TMP_DIR}/{wildcards.sample}.pair_decision.XXXXXX)
+        trap 'rm -rf "$tmpdir"' EXIT
+        
+        awk -v retain_unc="{params.retain_unclassified}" '
+            /^#/ {{ next }}
+            FNR==NR {{ fate[$1]="Retained_ERCC"; e++; next }}
+            FNR==1 {{ file++ }}
+            file==1 {{ if (!fate[$1]) {{ fate[$1]="Retained_Host"; h++ }}; next }}
+            file==2 {{ if (!fate[$1]) {{ fate[$1]="Removed_Tech"; t++ }}; next }}
+            file==3 {{ if (!fate[$1]) {{ fate[$1]="Removed_NonTarget"; n++ }}; next }}
+            file==4 {{ if (!fate[$1]) {{ fate[$1]="Retained_Uncertain"; u++ }}; next }}
+            END {{
+                for (id in fate) {{
+                    f = fate[id]
+                    if (f == "Retained_ERCC" || f == "Retained_Host" || (f == "Retained_Uncertain" && retain_unc == "True")) {{
+                        print id > "'$tmpdir'/clean_ids.txt"
+                    }} else if (f == "Retained_Uncertain") {{
+                        print id > "'$tmpdir'/uncertain_ids.txt"
+                    }} else {{
+                        print id > "'$tmpdir'/removed_ids.txt"
+                    }}
+                }}
+                printf "%s\\t%d\\t%d\\t%d\\t%d\\t%d\\n", "{wildcards.sample}", h+0, e+0, u+0, t+0, n+0 > "{output.summary}"
+            }}
+        ' <(zcat -f {input.ercc_ids}) <(zcat -f {input.host_ids}) <(zcat -f {input.tech_ids}) <(zcat -f {input.nontarget_ids}) <(zcat -f {input.uncertain_ids})
+        
+        touch $tmpdir/clean_ids.txt $tmpdir/uncertain_ids.txt $tmpdir/removed_ids.txt
+        
+        # 2. Extract sequences using seqkit
+        seqkit grep -f $tmpdir/clean_ids.txt {input.r1} -o {output.clean_r1}
+        seqkit grep -f $tmpdir/clean_ids.txt {input.r2} -o {output.clean_r2}
+        
+        if [ "{params.keep_audit_fastq}" = "True" ]; then
+            seqkit grep -f $tmpdir/uncertain_ids.txt {input.r1} -o {output.uncertain_r1}
+            seqkit grep -f $tmpdir/uncertain_ids.txt {input.r2} -o {output.uncertain_r2}
+            seqkit grep -f $tmpdir/removed_ids.txt {input.r1} -o {output.removed_r1}
+            seqkit grep -f $tmpdir/removed_ids.txt {input.r2} -o {output.removed_r2}
+        else
+            echo "" | gzip -c > {output.uncertain_r1}
+            echo "" | gzip -c > {output.uncertain_r2}
+            echo "" | gzip -c > {output.removed_r1}
+            echo "" | gzip -c > {output.removed_r2}
+        fi
+        
+        printf "[decontam_pair_decision] completed pair-aware extraction for %s\n" {wildcards.sample} >> {log}
+        """
 
 
 rule clean_reads_fastqc:

@@ -173,6 +173,7 @@ def get_decontam_all_targets(samples):
         expand("results/02.5.decontam/qc/{sample}_{read}_clean_fastqc.html", sample=samples, read=["R1", "R2"]),
         expand("results/02.5.decontam/qc/{sample}_{read}_clean_fastqc.zip", sample=samples, read=["R1", "R2"]),
         "results/02.5.decontam/stats/project_decontam_summary.tsv",
+        "results/02.5.decontam/reference/contam_scaffolds_blacklist.tsv",
     ]
 
 # Define alignment output paths based on selected aligner

@@ -63,7 +63,7 @@ decontam:
     ercc: "/mnt/nas/Database/decontam_references/ercc/ERCC92.fa"
     technical_contam:
       - "/mnt/nas/Database/decontam_references/technical/bootstrap_contam_seed.fa"
-    nearby_species: []
+
   classifier:
     name: "k2"
     db: "/mnt/nas/Database/k2_pluspfp_08_GB_20260226"
@@ -79,9 +79,6 @@ decontam:
     uncertain_taxids: [2, 953, 6231, 6854, 6656, 10239]
   outputs:
     keep_audit_fastq: true
-    export_symbiont_bins: false
-  validation:
-    compare_mapping_rates: true
 
 # Alignment method selection
 aligner: "hisat2"  # Choose "hisat2" or "star"
