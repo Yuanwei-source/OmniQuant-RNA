@@ -5,13 +5,16 @@ log <- file(snakemake@log[[1]], open="wt")
 sink(log)
 sink(log, type="message")
 
-library(dplyr)
-library(readr)
-library(ggplot2)
-library(pheatmap)
-library(RColorBrewer)
-library(ggrepel)
-library(VennDiagram)
+box::use(
+  dplyr[`%>%`, coalesce, filter, full_join, mutate, rename_with, select, top_n],
+  readr[write_csv, write_lines],
+  ggplot2[aes, geom_hline, geom_point, geom_vline, ggsave, ggplot, labs, scale_color_manual, theme_minimal],
+  pheatmap[pheatmap],
+  RColorBrewer[brewer.pal],
+  ggrepel[geom_text_repel],
+  VennDiagram[venn.diagram],
+  grid[grid.draw]
+)
 
 input_rds <- snakemake@input[["rds"]]
 output_dir <- snakemake@output[["outdir"]]

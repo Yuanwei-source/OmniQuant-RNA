@@ -5,22 +5,74 @@ log <- file(snakemake@log[[1]], open = "wt")
 sink(log)
 sink(log, type = "message")
 
-suppressPackageStartupMessages({
-  library(DESeq2)
-  library(edgeR)
-  library(limma)
-  library(readr)
-  library(tibble)
-  library(dplyr)
-  library(tximport)
-})
+box::use(
+  de = DESeq2,
+  ed = edgeR,
+  li = limma,
+  rd = readr,
+  tb = tibble,
+  dp = dplyr,
+  tx = tximport,
+  se = SummarizedExperiment
+)
+
+`%>%` <- dp$`%>%`
+all_of <- dp$all_of
+any_of <- dp$any_of
+bind_rows <- dp$bind_rows
+coalesce <- dp$coalesce
+distinct <- dp$distinct
+everything <- dp$everything
+filter <- dp$filter
+full_join <- dp$full_join
+left_join <- dp$left_join
+mutate <- dp$mutate
+na_if <- dp$na_if
+rename <- dp$rename
+select <- dp$select
+transmute <- dp$transmute
+
+col_character <- rd$col_character
+cols <- rd$cols
+read_tsv <- rd$read_tsv
+write_csv <- rd$write_csv
+write_tsv <- rd$write_tsv
+
+column_to_rownames <- tb$column_to_rownames
+rownames_to_column <- tb$rownames_to_column
+tibble <- tb$tibble
+
+DESeq <- de$DESeq
+DESeqDataSetFromMatrix <- de$DESeqDataSetFromMatrix
+DESeqDataSetFromTximport <- de$DESeqDataSetFromTximport
+assay <- se$assay
+results <- de$results
+vst <- de$vst
+
+calcNormFactors <- ed$calcNormFactors
+cpm <- ed$cpm
+DGEList <- ed$DGEList
+estimateDisp <- ed$estimateDisp
+glmQLFit <- ed$glmQLFit
+glmQLFTest <- ed$glmQLFTest
+scaleOffset <- ed$scaleOffset
+topTags <- ed$topTags
+
+contrasts.fit <- li$contrasts.fit
+eBayes <- li$eBayes
+lmFit <- li$lmFit
+makeContrasts <- li$makeContrasts
+topTable <- li$topTable
+voom <- li$voom
+
+run_tximport <- tx$tximport
 
 invisible(utils::globalVariables(c(
   "gene_id", "gene_name", "is_reference_gene", "allow_consensus_main",
   "is_novel_only", "is_ambiguous", "gene_id_original", "gene_id_resolved",
   "transcript_id", "gene_id_standard", "resolution_status",
   "gene_name_namespace", "is_reference_gene_namespace",
-  "included_in_main_namespace", "included_in_main"
+  "included_in_main_namespace", "included_in_main", ".data"
 )))
 
 `%||%` <- function(x, y) {
@@ -238,8 +290,8 @@ internal_import_function <- function(input_mode, primary_input, tx2gene_master_p
     tximport_args$ignoreAfterBar <- TRUE
   }
 
-  txi_raw <- do.call(tximport::tximport, c(tximport_args, list(countsFromAbundance = "no")))
-  txi_scaled <- do.call(tximport::tximport, c(tximport_args, list(countsFromAbundance = "lengthScaledTPM")))
+  txi_raw <- do.call(run_tximport, c(tximport_args, list(countsFromAbundance = "no")))
+  txi_scaled <- do.call(run_tximport, c(tximport_args, list(countsFromAbundance = "lengthScaledTPM")))
 
   gene_metadata <- master_info$gene_metadata %>%
     full_join(gene_namespace, by = "gene_id_standard", suffix = c("", "_namespace")) %>%

@@ -5,19 +5,50 @@ log <- file(snakemake@log[[1]], open = "wt")
 sink(log)
 sink(log, type = "message")
 
-suppressPackageStartupMessages({
-  library(readr)
-  library(dplyr)
-  library(tibble)
-  library(ggplot2)
-  library(RobustRankAggreg)
-  library(UpSetR)
-  library(matrixStats)
-})
+box::use(
+  rd = readr,
+  dp = dplyr,
+  tb = tibble,
+  gg = ggplot2,
+  us = UpSetR
+)
+
+`%>%` <- dp$`%>%`
+all_of <- dp$all_of
+any_of <- dp$any_of
+arrange <- dp$arrange
+coalesce <- dp$coalesce
+desc <- dp$desc
+distinct <- dp$distinct
+filter <- dp$filter
+left_join <- dp$left_join
+mutate <- dp$mutate
+rename <- dp$rename
+select <- dp$select
+transmute <- dp$transmute
+
+read_csv <- rd$read_csv
+read_tsv <- rd$read_tsv
+write_tsv <- rd$write_tsv
+
+tibble <- tb$tibble
+
+aes <- gg$aes
+geom_abline <- gg$geom_abline
+geom_hline <- gg$geom_hline
+geom_point <- gg$geom_point
+geom_vline <- gg$geom_vline
+ggsave <- gg$ggsave
+ggplot <- gg$ggplot
+labs <- gg$labs
+theme_bw <- gg$theme_bw
+
+fromList <- us$fromList
+upset <- us$upset
 
 invisible(utils::globalVariables(c(
   "gene_id_standard", "gene_name", "logFC", "P.Value", "adj.P.Val",
-  "included_in_main", "method", "contrast"
+  "included_in_main", "method", "contrast", ".data"
 )))
 
 `%||%` <- function(x, y) {
