@@ -17,10 +17,11 @@ data/fastq/*.gz
 results/
 logs/
 benchmarks/
-results/04.quantification/stringtie/gene_counts_matrix.tsv
-results/04.quantification/stringtie/gene_tpm_matrix.tsv
-results/04.quantification/stringtie/transcript_counts_matrix.tsv
-results/04.quantification/stringtie/transcript_tpm_matrix.tsv
+local_benchmarks/
+results/05.quantification/stringtie/gene_counts_matrix.tsv
+results/05.quantification/stringtie/gene_tpm_matrix.tsv
+results/05.quantification/stringtie/transcript_counts_matrix.tsv
+results/05.quantification/stringtie/transcript_tpm_matrix.tsv
 gene_counts_matrix_fixed.tsv
 gene_tpm_matrix_fixed.tsv
 gene_id_mapping.tsv

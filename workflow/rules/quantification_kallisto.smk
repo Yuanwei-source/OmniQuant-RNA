@@ -1,8 +1,8 @@
 # Quantification Rules
 # Transcript quantification using Kallisto and Salmon
 
-KALLISTO_NATIVE_DIR = "results/04.quantification/native/kallisto/per_sample"
-KALLISTO_MATRIX_DIR = "results/04.quantification/matrices/kallisto"
+KALLISTO_NATIVE_DIR = "results/05.quantification/native/kallisto/per_sample"
+KALLISTO_MATRIX_DIR = "results/05.quantification/matrices/kallisto"
 
 rule kallisto_index:
     """
@@ -25,8 +25,8 @@ rule kallisto_quant:
     """
     input:
         index="data/reference/kallisto_index/transcriptome.idx",
-        r1="results/02.trimmed_data/{sample}_R1_trimmed.fastq.gz",
-        r2="results/02.trimmed_data/{sample}_R2_trimmed.fastq.gz"
+        r1=get_analysis_r1,
+        r2=get_analysis_r2
     output:
         abundance=f"{KALLISTO_NATIVE_DIR}" + "/{sample}/abundance.tsv",
         h5=f"{KALLISTO_NATIVE_DIR}" + "/{sample}/abundance.h5",
@@ -86,4 +86,4 @@ rule kallisto_quantification_results:
     output:
         "results/quantification_results/{sample}/abundance.tsv"
     shell:
-        "mkdir -p $(dirname {output}) && ln -sf ../../04.quantification/native/kallisto/per_sample/{wildcards.sample}/abundance.tsv {output}"
+        "mkdir -p $(dirname {output}) && ln -sf ../../05.quantification/native/kallisto/per_sample/{wildcards.sample}/abundance.tsv {output}"

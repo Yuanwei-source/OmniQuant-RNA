@@ -6,24 +6,10 @@ import csv
 from collections import defaultdict
 from pathlib import Path
 
+from annotation_utils import parse_attributes
+
 
 TRANSCRIPT_FEATURES = {"transcript", "mRNA", "mrna", "lnc_RNA", "rRNA", "tRNA"}
-
-
-def parse_attributes(raw):
-    attrs = {}
-    for field in raw.strip().strip(";").split(";"):
-        field = field.strip()
-        if not field:
-            continue
-        if "=" in field:
-            key, value = field.split("=", 1)
-        elif " " in field:
-            key, value = field.split(" ", 1)
-        else:
-            continue
-        attrs[key.strip()] = value.strip().strip('"')
-    return attrs
 
 
 def main():

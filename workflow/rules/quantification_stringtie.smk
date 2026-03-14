@@ -1,16 +1,16 @@
 # Quantification Rules
 # Transcript quantification using StringTie
 
-STRINGTIE_NATIVE_DIR = "results/04.quantification/native/stringtie"
-STRINGTIE_MATRIX_DIR = "results/04.quantification/matrices/stringtie"
-STRINGTIE_AUDIT_DIR = "results/04.quantification/audit/stringtie"
+STRINGTIE_NATIVE_DIR = "results/05.quantification/native/stringtie"
+STRINGTIE_MATRIX_DIR = "results/05.quantification/matrices/stringtie"
+STRINGTIE_AUDIT_DIR = "results/05.quantification/audit/stringtie"
 
 rule stringtie_assemble:
     """
     Assemble transcripts and quantify gene/transcript expression using StringTie
     """
     input:
-        bam="results/03.alignment/{sample}.bam",
+        bam="results/04.alignment/{sample}.bam",
         gtf=config["reference"]["gtf"]
     output:
         gtf=f"{STRINGTIE_NATIVE_DIR}/per_sample" + "/{sample}/assembly/transcripts.gtf",
@@ -82,7 +82,7 @@ rule stringtie_quantify_final:
     Final quantification using merged GTF
     """
     input:
-        bam="results/03.alignment/{sample}.bam",
+        bam="results/04.alignment/{sample}.bam",
         merged_gtf=f"{STRINGTIE_NATIVE_DIR}/merged/merged.gtf"
     output:
         gtf=f"{STRINGTIE_NATIVE_DIR}/per_sample" + "/{sample}/final/transcripts.gtf",
@@ -215,4 +215,4 @@ rule quantification_results_stringtie:
     output:
         "results/quantification_results/{sample}/stringtie_abundances.tab"
     shell:
-        "mkdir -p $(dirname {output}) && ln -sf ../../04.quantification/native/stringtie/per_sample/{wildcards.sample}/final/gene_abundances.tab {output}"
+        "mkdir -p $(dirname {output}) && ln -sf ../../05.quantification/native/stringtie/per_sample/{wildcards.sample}/final/gene_abundances.tab {output}"

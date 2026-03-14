@@ -54,11 +54,12 @@ OmniQuant-RNA/
     ├── 00.reference/
     ├── 01.raw_qc/
     ├── 02.trimmed_data/
-    ├── 03.alignment/
-    ├── 04.quantification/
-    ├── 05.differential_expression/
-    ├── 06.consensus_expression/
-  └── 07.reports/
+    ├── 03.decontam/
+    ├── 04.alignment/
+    ├── 05.quantification/
+    ├── 06.differential_expression/
+    ├── 07.consensus_expression/
+  └── 08.reports/
 ```
 
 ## 环境要求
@@ -203,9 +204,9 @@ snakemake --rulegraph | dot -Tpng > rules_graph.png
 
 - `all`：运行完整工作流。
 - `qc`：只运行质量控制。
-- `quantification`：只运行定量阶段，输出到 [results/04.quantification](results/04.quantification)，并按 [results/04.quantification/native](results/04.quantification/native)、[results/04.quantification/matrices](results/04.quantification/matrices)、[results/04.quantification/audit](results/04.quantification/audit) 分层组织。
+- `quantification`：只运行定量阶段，输出到 [results/05.quantification](results/05.quantification)，并按 [results/05.quantification/native](results/05.quantification/native)、[results/05.quantification/matrices](results/05.quantification/matrices)、[results/05.quantification/audit](results/05.quantification/audit) 分层组织。
 - `alignment`：只运行序列比对。
-- `differential_expression` / `dea`：只运行差异表达分析，读取 [results/04.quantification/matrices](results/04.quantification/matrices) 和 [results/00.reference/import_manifests](results/00.reference/import_manifests) 作为正式输入。
+- `differential_expression` / `dea`：只运行差异表达分析，读取 [results/05.quantification/matrices](results/05.quantification/matrices) 和 [results/00.reference/import_manifests](results/00.reference/import_manifests) 作为正式输入。
 - `dry-run`：干运行检查主流程及关键模块。
 
 示例：
@@ -236,19 +237,20 @@ snakemake --rulegraph | dot -Tpng > rules_graph.png
 
 - [results/01.raw_qc](results/01.raw_qc)：原始 reads FastQC 结果。
 - [results/02.trimmed_data](results/02.trimmed_data)：fastp 输出和修剪后 FastQC 结果。
-- [results/07.reports](results/07.reports)：MultiQC 报告。
+- [results/03.decontam](results/03.decontam)：去污染 clean reads、统计表和 clean FastQC 结果。
+- [results/08.reports](results/08.reports)：MultiQC 报告。
 
 ### 3. 比对与定量
 
-- [results/03.alignment](results/03.alignment)：HISAT2 比对结果。
-- [results/04.quantification](results/04.quantification)：定量阶段统一输出目录。
-- 其中 [results/04.quantification/native](results/04.quantification/native) 保存各定量器原生结果。
-- 其中 [results/04.quantification/matrices](results/04.quantification/matrices) 保存下游分析使用的正式矩阵。
-- 其中 [results/04.quantification/audit](results/04.quantification/audit) 保存轻量审计表，如 StringTie gene_id 映射。
+- [results/04.alignment](results/04.alignment)：HISAT2 或 STAR 比对结果。
+- [results/05.quantification](results/05.quantification)：定量阶段统一输出目录。
+- 其中 [results/05.quantification/native](results/05.quantification/native) 保存各定量器原生结果。
+- 其中 [results/05.quantification/matrices](results/05.quantification/matrices) 保存下游分析使用的正式矩阵。
+- 其中 [results/05.quantification/audit](results/05.quantification/audit) 保存轻量审计表，如 StringTie gene_id 映射。
 
 ### 4. 差异表达分析
 
-位于 [results/05.differential_expression](results/05.differential_expression)，每个 quantifier 目录下包含：
+位于 [results/06.differential_expression](results/06.differential_expression)，每个 quantifier 目录下包含：
 
 - 原始 DEA 结果表。
 - dea_session.rds。
@@ -257,7 +259,7 @@ snakemake --rulegraph | dot -Tpng > rules_graph.png
 
 ### 5. 共识差异表达分析
 
-位于 [results/06.consensus_expression](results/06.consensus_expression)，按 contrast 分目录输出：
+位于 [results/07.consensus_expression](results/07.consensus_expression)，按 contrast 分目录输出：
 
 - consensus_results.tsv
 - consensus_summary.tsv

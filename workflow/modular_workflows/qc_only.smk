@@ -4,7 +4,7 @@ import subprocess
 import sys
 
 # Configuration file
-configfile: "../../config/config.yaml"
+configfile: "config/config.yaml"
 
 # Sample information
 samples_df = pd.read_csv(config["samples"], sep="\t").set_index("sample", drop=False)
@@ -16,6 +16,31 @@ def get_r1(wildcards):
 
 def get_r2(wildcards):
     return samples_df.loc[wildcards.sample, "fq2"]
+
+
+FASTQ_SUFFIXES = [
+    ".fastq.gz",
+    ".fq.gz",
+    ".fastq.bz2",
+    ".fq.bz2",
+    ".fastq",
+    ".fq",
+]
+
+
+def get_fastq_suffix(path):
+    lower_path = str(path).lower()
+    for suffix in FASTQ_SUFFIXES:
+        if lower_path.endswith(suffix):
+            return suffix
+    raise ValueError(
+        f"Unsupported FASTQ extension for '{path}'. Supported suffixes: {', '.join(FASTQ_SUFFIXES)}"
+    )
+
+
+def get_fastqc_alias_path(sample, read_label, source_path):
+    suffix = get_fastq_suffix(source_path)
+    return os.path.join(".snakemake", "fastqc_aliases", sample, f"{sample}_{read_label}{suffix}")
 
 # Auto-detect Reference Files
 def auto_detect_references():

@@ -60,7 +60,8 @@ build_pairs <- function(groups, comparisons) {
   }
 
   if (is.character(comparisons) && length(comparisons) == 1 && comparisons == "all") {
-    return(combn(groups, 2, simplify = FALSE))
+    groups_sorted <- sort(unique(groups))
+    return(combn(groups_sorted, 2, simplify = FALSE))
   }
 
   pairs <- list()
@@ -330,6 +331,8 @@ group_col <- "group"
 if (!group_col %in% colnames(samples)) {
   stop("Column 'group' not found in sample file.")
 }
+
+samples[[group_col]] <- factor(samples[[group_col]])
 
 design_formula <- as.formula(paste0("~ ", group_col))
 if (!is.null(config_dea$batch_column) && config_dea$batch_column %in% colnames(samples)) {

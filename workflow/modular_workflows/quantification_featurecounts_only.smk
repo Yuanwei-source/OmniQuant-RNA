@@ -4,7 +4,7 @@ import subprocess
 import sys
 
 # Configuration file
-configfile: "../../config/config.yaml"
+configfile: "config/config.yaml"
 
 # Sample information
 samples_df = pd.read_csv(config["samples"], sep="\t").set_index("sample", drop=False)
@@ -76,10 +76,10 @@ include: "../rules/quantification_featurecounts.smk"
 rule all:
     input:
         # Individual sample counts
-        expand("results/04.quantification/native/featurecounts/per_sample/{sample}/counts.txt", sample=samples),
-        expand("results/04.quantification/native/featurecounts/per_sample/{sample}/transcript_counts.txt", sample=samples),
-        expand("results/04.quantification/native/featurecounts/per_sample/{sample}/exon_counts.txt", sample=samples),
+        expand("results/05.quantification/native/featurecounts/per_sample/{sample}/counts.txt", sample=SAMPLES),
+        expand("results/05.quantification/native/featurecounts/per_sample/{sample}/transcript_counts.txt", sample=SAMPLES),
+        expand("results/05.quantification/native/featurecounts/per_sample/{sample}/exon_counts.txt", sample=SAMPLES),
         # Combined count matrix
-        "results/04.quantification/matrices/featurecounts/featurecounts_gene_counts_matrix.tsv",
+        "results/05.quantification/matrices/featurecounts/featurecounts_gene_counts_matrix.tsv",
         # Compatibility outputs
-        expand("results/quantification/{sample}/featurecounts.txt", sample=samples)
+        expand("results/quantification/{sample}/featurecounts.txt", sample=SAMPLES)

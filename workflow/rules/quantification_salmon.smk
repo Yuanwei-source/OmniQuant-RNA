@@ -1,8 +1,8 @@
 # Quantification Rules
 # Transcript quantification using Kallisto and Salmon
 
-SALMON_NATIVE_DIR = "results/04.quantification/native/salmon/per_sample"
-SALMON_MATRIX_DIR = "results/04.quantification/matrices/salmon"
+SALMON_NATIVE_DIR = "results/05.quantification/native/salmon/per_sample"
+SALMON_MATRIX_DIR = "results/05.quantification/matrices/salmon"
 
 rule salmon_index:
     """
@@ -35,8 +35,8 @@ rule salmon_quant:
     """
     input:
         index="data/reference/salmon_index",
-        r1="results/02.trimmed_data/{sample}_R1_trimmed.fastq.gz",
-        r2="results/02.trimmed_data/{sample}_R2_trimmed.fastq.gz"
+        r1=get_analysis_r1,
+        r2=get_analysis_r2
     output:
         f"{SALMON_NATIVE_DIR}" + "/{sample}/quant.sf"
     conda:
@@ -97,4 +97,4 @@ rule quantification_results_salmon:
     output:
         "results/quantification_results/{sample}/quant.sf"
     shell:
-        "mkdir -p $(dirname {output}) && ln -sf ../../04.quantification/native/salmon/per_sample/{wildcards.sample}/quant.sf {output}"
+        "mkdir -p $(dirname {output}) && ln -sf ../../05.quantification/native/salmon/per_sample/{wildcards.sample}/quant.sf {output}"

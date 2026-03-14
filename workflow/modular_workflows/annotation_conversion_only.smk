@@ -4,7 +4,7 @@ import subprocess
 import sys
 
 # Configuration file
-configfile: "../../config/config.yaml"
+configfile: "config/config.yaml"
 
 # Sample information
 samples_df = pd.read_csv(config["samples"], sep="\t").set_index("sample", drop=False)

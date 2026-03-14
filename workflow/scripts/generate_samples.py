@@ -4,6 +4,10 @@ import glob
 import re
 import argparse
 
+
+READ1_PATTERNS = [r'_R1(?:\D|$)', r'\.R1(?:\D|$)', r'_1(?:\D|$)', r'\.1(?:\D|$)']
+READ2_PATTERNS = [r'_R2(?:\D|$)', r'\.R2(?:\D|$)', r'_2(?:\D|$)', r'\.2(?:\D|$)']
+
 def find_fastq_files(directory):
     """Find all FASTQ files in the directory."""
     fastq_extensions = ['.fastq', '.fq', '.fastq.gz', '.fq.gz']
@@ -41,15 +45,26 @@ def extract_sample_info(files):
             
         abs_path = os.path.abspath(file_path)
         
-        # Determine if R1 or R2
-        if '_R1' in filename or '_1.' in filename or filename.endswith('_1') or '.R1.' in filename:
+        filename_lower = filename.lower()
+        is_r1 = any(re.search(p, filename_lower, flags=re.IGNORECASE) for p in READ1_PATTERNS)
+        is_r2 = any(re.search(p, filename_lower, flags=re.IGNORECASE) for p in READ2_PATTERNS)
+
+        if is_r1 and is_r2:
+            raise ValueError("Ambiguous read direction for file: {}".format(file_path))
+
+        if is_r1:
+            if samples[base_name]['r1'] is not None:
+                raise ValueError("Duplicate R1 for sample {}: {} and {}".format(base_name, samples[base_name]['r1'], abs_path))
             samples[base_name]['r1'] = abs_path
-        elif '_R2' in filename or '_2.' in filename or filename.endswith('_2') or '.R2.' in filename:
+        elif is_r2:
+            if samples[base_name]['r2'] is not None:
+                raise ValueError("Duplicate R2 for sample {}: {} and {}".format(base_name, samples[base_name]['r2'], abs_path))
             samples[base_name]['r2'] = abs_path
         else:
-            # Fallback: if we can't determine, assume R1 if empty
-            if samples[base_name]['r1'] is None:
-                samples[base_name]['r1'] = abs_path
+            raise ValueError(
+                "Cannot infer read direction (R1/R2) from file name: {}. "
+                "Please use *_R1/*_R2 or *_1/*_2 naming.".format(file_path)
+            )
                 
     return samples
 
@@ -83,7 +98,11 @@ Examples:
         sys.exit(1)
     
     # Extract sample info
-    samples_dict = extract_sample_info(fastq_files)
+    try:
+        samples_dict = extract_sample_info(fastq_files)
+    except ValueError as exc:
+        print("Error: {}".format(exc), file=sys.stderr)
+        sys.exit(1)
     
     # Prepare output
     output_lines = []
