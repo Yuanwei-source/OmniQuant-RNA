@@ -51,8 +51,8 @@ def decontam_enabled():
 def get_analysis_reads(wildcards):
     if decontam_enabled():
         return {
-            "r1": f"results/02.5.decontam/clean/{wildcards.sample}_R1_clean.fastq.gz",
-            "r2": f"results/02.5.decontam/clean/{wildcards.sample}_R2_clean.fastq.gz",
+            "r1": f"results/03.decontam/clean/{wildcards.sample}_R1_clean.fastq.gz",
+            "r2": f"results/03.decontam/clean/{wildcards.sample}_R2_clean.fastq.gz",
         }
 
     return {
@@ -141,8 +141,8 @@ include: "../rules/decontam.smk"
 
 rule all_decontam:
     input:
-        expand("results/02.5.decontam/clean/{sample}_R1_clean.fastq.gz", sample=SAMPLES),
-        expand("results/02.5.decontam/clean/{sample}_R2_clean.fastq.gz", sample=SAMPLES),
-        expand("results/02.5.decontam/stats/{sample}_decision_summary.tsv", sample=SAMPLES),
-        expand("results/02.5.decontam/qc/{sample}_{read}_clean_fastqc.html", sample=SAMPLES, read=["R1", "R2"]),
-        "results/02.5.decontam/stats/project_decontam_summary.tsv"
+        expand("results/03.decontam/clean/{sample}_R1_clean.fastq.gz", sample=SAMPLES),
+        expand("results/03.decontam/clean/{sample}_R2_clean.fastq.gz", sample=SAMPLES),
+        expand("results/03.decontam/stats/{sample}_decision_summary.tsv", sample=SAMPLES),
+        expand("results/03.decontam/qc/{sample}_{read}_clean_fastqc.html", sample=SAMPLES, read=["R1", "R2"]),
+        "results/03.decontam/stats/project_decontam_summary.tsv"

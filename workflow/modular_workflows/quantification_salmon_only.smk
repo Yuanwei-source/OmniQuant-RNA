@@ -25,8 +25,8 @@ def decontam_enabled():
 def get_analysis_reads(wildcards):
     if decontam_enabled():
         return {
-            "r1": f"results/02.5.decontam/clean/{wildcards.sample}_R1_clean.fastq.gz",
-            "r2": f"results/02.5.decontam/clean/{wildcards.sample}_R2_clean.fastq.gz",
+            "r1": f"results/03.decontam/clean/{wildcards.sample}_R1_clean.fastq.gz",
+            "r2": f"results/03.decontam/clean/{wildcards.sample}_R2_clean.fastq.gz",
         }
 
     return {
@@ -102,6 +102,6 @@ include: "../rules/quantification_salmon.smk"
 rule all_salmon:
     input:
         # Salmon results  
-        expand("results/04.quantification/native/salmon/per_sample/{sample}/quant.sf", sample=SAMPLES),
+        expand("results/05.quantification/native/salmon/per_sample/{sample}/quant.sf", sample=SAMPLES),
         # Compatibility symlinks
         expand("results/quantification/{sample}/quant.sf", sample=SAMPLES)

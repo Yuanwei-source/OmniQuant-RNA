@@ -163,7 +163,10 @@ consensus:
 # Differential Expression Analysis (DEA) parameters
 dea:
   methods: ["deseq2", "edger", "limma"]  # 启用哪些方法
-  comparisons: "all"  # 或指定如 ["treatment_vs_control"]
+  comparisons: 
+    - "60d_vs_1d"
+  #  - "30d_vs_1d"
+  #  - "60d_vs_30d"  # 随意数量的配对，约定 "_" 右侧的组为对照组（分母），左侧的组为处理组（分子）
   batch_column: null  # 如有批次效应，指定列名
   fdr_threshold: 0.05
   lfc_threshold: 1.0

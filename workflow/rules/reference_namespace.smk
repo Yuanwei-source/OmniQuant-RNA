@@ -51,7 +51,7 @@ rule build_gene_namespace:
 rule build_stringtie_bridge:
     """Build conservative StringTie-to-reference mapping bridge."""
     input:
-        merged_gtf="results/04.quantification/native/stringtie/merged/merged.gtf",
+        merged_gtf="results/05.quantification/native/stringtie/merged/merged.gtf",
         reference_tx2gene=REFERENCE_TX2GENE
     output:
         STRINGTIE_BRIDGE
@@ -94,9 +94,9 @@ rule build_import_manifests:
     """Build manifest files for tximport-based quantifiers."""
     input:
         samples=config["samples"],
-        salmon=expand("results/04.quantification/native/salmon/per_sample/{sample}/quant.sf", sample=SAMPLES),
-        kallisto=expand("results/04.quantification/native/kallisto/per_sample/{sample}/abundance.tsv", sample=SAMPLES),
-        stringtie=expand("results/04.quantification/native/stringtie/per_sample/{sample}/final/t_data.ctab", sample=SAMPLES)
+        salmon=expand("results/05.quantification/native/salmon/per_sample/{sample}/quant.sf", sample=SAMPLES),
+        kallisto=expand("results/05.quantification/native/kallisto/per_sample/{sample}/abundance.tsv", sample=SAMPLES),
+        stringtie=expand("results/05.quantification/native/stringtie/per_sample/{sample}/final/t_data.ctab", sample=SAMPLES)
     output:
         salmon=SALMON_MANIFEST,
         kallisto=KALLISTO_MANIFEST,

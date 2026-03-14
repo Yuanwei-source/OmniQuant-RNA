@@ -4,34 +4,18 @@ import gzip
 import os
 import re
 from collections import Counter
+from pathlib import Path
 from typing import TextIO, cast
 
+from annotation_utils import parse_attributes
 
-ATTRIBUTE_SPLIT_RE = re.compile(r"\s*;\s*")
+
 SAFE_ID_RE = re.compile(r"[^A-Za-z0-9._:-]+")
 
 
 def open_maybe_gzip(path, mode="rt"):
     handle = gzip.open(path, mode) if path.endswith(".gz") else open(path, mode)
     return cast(TextIO, handle)
-
-
-def parse_attributes(attr_str):
-    attrs = {}
-    for raw_field in ATTRIBUTE_SPLIT_RE.split(attr_str.strip().strip(";")):
-        field = raw_field.strip()
-        if not field:
-            continue
-
-        if "=" in field:
-            key, value = field.split("=", 1)
-        elif " " in field:
-            key, value = field.split(" ", 1)
-        else:
-            continue
-
-        attrs[key.strip()] = value.strip().strip('"')
-    return attrs
 
 
 def format_attributes(attrs):
@@ -124,8 +108,12 @@ def ensure_exon_id(attrs, chrom, start, end, strand, line_no):
 
 def normalize_gtf(input_path, output_path, summary_path):
     stats = Counter()
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    os.makedirs(os.path.dirname(summary_path), exist_ok=True)
+    output_parent = Path(output_path).parent
+    summary_parent = Path(summary_path).parent
+    if str(output_parent) != ".":
+        output_parent.mkdir(parents=True, exist_ok=True)
+    if str(summary_parent) != ".":
+        summary_parent.mkdir(parents=True, exist_ok=True)
 
     with open_maybe_gzip(input_path, "rt") as src, open(output_path, "w") as dst:
         for line_no, line in enumerate(src, 1):

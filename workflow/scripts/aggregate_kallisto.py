@@ -3,10 +3,9 @@
 Aggregate Kallisto results across all samples
 """
 
-import pandas as pd
 import argparse
-import os
-from pathlib import Path
+
+from aggregate_common import ensure_parent_dir, load_sample_tables, build_matrix
 
 def main():
     parser = argparse.ArgumentParser(description='Aggregate Kallisto quantification results')
@@ -16,54 +15,37 @@ def main():
     parser.add_argument('--output-tpm', required=True, help='Output TPM matrix file')
     
     args = parser.parse_args()
-    Path(args.output_counts).parent.mkdir(parents=True, exist_ok=True)
-    Path(args.output_tpm).parent.mkdir(parents=True, exist_ok=True)
-    
-    # Initialize lists to store data
-    counts_data = []
-    tpm_data = []
-    gene_info = None
-    sample_names = []
-    
-    # Process each sample
-    for sample in args.samples:
-        abundance_file = Path(args.input_dir) / sample / "abundance.tsv"
-        
-        if not abundance_file.exists():
-            print(f"Warning: {abundance_file} does not exist, skipping {sample}")
-            continue
-            
-        # Read Kallisto abundance output
-        df = pd.read_csv(abundance_file, sep='\t')
-        
-        if gene_info is None:
-            # First sample - store gene info
-            gene_info = df[['target_id', 'length', 'eff_length']].copy()
-        
-        # Extract counts and TPM
-        counts_col = df['est_counts'].copy()
-        counts_col.name = sample
-        counts_data.append(counts_col)
-        
-        tpm_col = df['tpm'].copy()
-        tpm_col.name = sample
-        tpm_data.append(tpm_col)
-        
-        sample_names.append(sample)
-    
-    if not counts_data:
+    ensure_parent_dir(args.output_counts)
+    ensure_parent_dir(args.output_tpm)
+
+    sample_names, sample_tables = load_sample_tables(
+        input_dir=args.input_dir,
+        samples=args.samples,
+        relative_filename="abundance.tsv",
+        reader_kwargs={"sep": "\t"},
+    )
+
+    if not sample_names:
         print("Error: No valid abundance files found")
         return
-    
-    # Combine counts data
-    counts_df = pd.concat([gene_info[['target_id', 'length', 'eff_length']]] + counts_data, axis=1)
+
+    counts_df = build_matrix(
+        tables_by_sample=sample_tables,
+        sample_order=sample_names,
+        id_columns=["target_id", "length", "eff_length"],
+        value_extractor=lambda df: df["est_counts"],
+    )
     counts_df.to_csv(args.output_counts, sep='\t', index=False)
-    
-    # Combine TPM data
-    tpm_df = pd.concat([gene_info[['target_id', 'length', 'eff_length']]] + tpm_data, axis=1)
+
+    tpm_df = build_matrix(
+        tables_by_sample=sample_tables,
+        sample_order=sample_names,
+        id_columns=["target_id", "length", "eff_length"],
+        value_extractor=lambda df: df["tpm"],
+    )
     tpm_df.to_csv(args.output_tpm, sep='\t', index=False)
-    
-    print(f"Created matrices with {len(gene_info)} transcripts and {len(sample_names)} samples")
+
+    print(f"Created matrices with {len(counts_df)} transcripts and {len(sample_names)} samples")
     print(f"Counts saved to: {args.output_counts}")
     print(f"TPM saved to: {args.output_tpm}")
 

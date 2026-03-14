@@ -11,17 +11,17 @@ ALIGNER = config.get("aligner", "hisat2")
 # Function to get the appropriate BAM file based on selected aligner
 def get_aligner_bam(wildcards):
     if ALIGNER == "hisat2":
-        return f"results/03.alignment/hisat2/{wildcards.sample}.bam"
+        return f"results/04.alignment/hisat2/{wildcards.sample}.bam"
     elif ALIGNER == "star":
-        return f"results/03.alignment/star/{wildcards.sample}.bam"
+        return f"results/04.alignment/star/{wildcards.sample}.bam"
     else:
         raise ValueError(f"Unknown aligner: {ALIGNER}. Choose 'hisat2' or 'star'")
 
 def get_aligner_bai(wildcards):
     if ALIGNER == "hisat2":
-        return f"results/03.alignment/hisat2/{wildcards.sample}.bam.bai"
+        return f"results/04.alignment/hisat2/{wildcards.sample}.bam.bai"
     elif ALIGNER == "star":
-        return f"results/03.alignment/star/{wildcards.sample}.bam.bai"
+        return f"results/04.alignment/star/{wildcards.sample}.bam.bai"
     else:
         raise ValueError(f"Unknown aligner: {ALIGNER}. Choose 'hisat2' or 'star'")
 
@@ -54,8 +54,8 @@ rule hisat2_align:
         r2=get_analysis_r2,
         index="data/reference/hisat2_index"
     output:
-        bam="results/03.alignment/hisat2/{sample}.bam",
-        bai="results/03.alignment/hisat2/{sample}.bam.bai"
+        bam="results/04.alignment/hisat2/{sample}.bam",
+        bai="results/04.alignment/hisat2/{sample}.bam.bai"
     conda:
         "../../envs/alignment.yaml"
     params:
@@ -108,13 +108,13 @@ rule star_align:
         r2=get_analysis_r2,
         index="data/reference/star_index"
     output:
-        bam="results/03.alignment/star/{sample}.bam",
-        bai="results/03.alignment/star/{sample}.bam.bai",
-        log_final="results/03.alignment/star/{sample}_Log.final.out"
+        bam="results/04.alignment/star/{sample}.bam",
+        bai="results/04.alignment/star/{sample}.bam.bai",
+        log_final="results/04.alignment/star/{sample}_Log.final.out"
     conda:
         "../../envs/alignment.yaml"
     params:
-        outdir="results/03.alignment/star"
+        outdir="results/04.alignment/star"
     log:
         "logs/star/{sample}.log"
     threads: 16
@@ -149,8 +149,8 @@ rule select_alignment_bam:
         bam=get_aligner_bam,
         bai=get_aligner_bai
     output:
-        bam="results/03.alignment/{sample}.bam",
-        bai="results/03.alignment/{sample}.bam.bai"
+        bam="results/04.alignment/{sample}.bam",
+        bai="results/04.alignment/{sample}.bam.bai"
     shell:
         """
         ln -sf $(realpath {input.bam}) {output.bam}

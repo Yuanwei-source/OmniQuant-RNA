@@ -1,8 +1,8 @@
 # Quantification Rules
 # Transcript quantification using Kallisto and Salmon
 
-SALMON_NATIVE_DIR = "results/04.quantification/native/salmon/per_sample"
-SALMON_MATRIX_DIR = "results/04.quantification/matrices/salmon"
+SALMON_NATIVE_DIR = "results/05.quantification/native/salmon/per_sample"
+SALMON_MATRIX_DIR = "results/05.quantification/matrices/salmon"
 
 rule salmon_index:
     """
@@ -97,4 +97,4 @@ rule quantification_results_salmon:
     output:
         "results/quantification_results/{sample}/quant.sf"
     shell:
-        "mkdir -p $(dirname {output}) && ln -sf ../../04.quantification/native/salmon/per_sample/{wildcards.sample}/quant.sf {output}"
+        "mkdir -p $(dirname {output}) && ln -sf ../../05.quantification/native/salmon/per_sample/{wildcards.sample}/quant.sf {output}"

@@ -1,4 +1,4 @@
-DECONTAM_DIR = "results/02.5.decontam"
+DECONTAM_DIR = "results/03.decontam"
 DECONTAM_TMP_DIR = f"{DECONTAM_DIR}/tmp"
 DECONTAM_CLEAN_DIR = f"{DECONTAM_DIR}/clean"
 DECONTAM_AUDIT_DIR = f"{DECONTAM_DIR}/audit"
@@ -370,12 +370,15 @@ rule decontam_classify_unresolved:
         minimum_hit_groups=CLASSIFIER_CONFIG.get("minimum_hit_groups", 3),
         report_minimizer_data=CLASSIFIER_CONFIG.get("report_minimizer_data", True),
         memory_mapping=CLASSIFIER_CONFIG.get("memory_mapping", True),
-        nontarget_taxids=repr(DECONTAM_CONFIG.get("policy", {}).get("nontarget_taxids", [])),
-        uncertain_taxids=repr(DECONTAM_CONFIG.get("policy", {}).get("uncertain_taxids", [])),
+        nontarget_taxids=",".join(map(str, DECONTAM_CONFIG.get("policy", {}).get("nontarget_taxids", []))),
+        uncertain_taxids=",".join(map(str, DECONTAM_CONFIG.get("policy", {}).get("uncertain_taxids", []))),
         ecological_as_uncertain=DECONTAM_CONFIG.get("policy", {}).get("ecological_as_uncertain", True)
     shell:
         """
         mkdir -p {DECONTAM_TMP_DIR} {DECONTAM_STATS_DIR} $(dirname {log}) benchmarks/decontam
+        tmpdir=$(mktemp -d {DECONTAM_TMP_DIR}/{wildcards.sample}.classify.XXXXXX)
+        trap 'rm -rf "$tmpdir"' EXIT
+
         if [ -n "{params.db}" ] && [ -f "{params.db}/hash.k2d" ] && [ -f "{params.db}/opts.k2d" ] && [ -f "{params.db}/taxo.k2d" ]; then
             extra_args=""
             if [ "{params.memory_mapping}" = "True" ]; then
@@ -404,26 +407,26 @@ rule decontam_classify_unresolved:
 
         # Not using python script anymore. Use taxonkit + awk natively.
         
-        NONTARGET=$(echo '{params.nontarget_taxids}' | sed 's/[][ '\'\"']//g')
-        UNCERTAIN=$(echo '{params.uncertain_taxids}' | sed 's/[][ '\'\"']//g')
+        NONTARGET="{params.nontarget_taxids}"
+        UNCERTAIN="{params.uncertain_taxids}"
         
         if [ -n "$NONTARGET" ] && [ -n "{params.db}" ]; then
-            taxonkit list --data-dir {params.db}/taxonomy --ids "$NONTARGET" > $tmpdir/nontarget.taxids 2>/dev/null || touch $tmpdir/nontarget.taxids
+            taxonkit list --data-dir {params.db}/taxonomy --ids "$NONTARGET" > "$tmpdir/nontarget.taxids" 2>/dev/null || touch "$tmpdir/nontarget.taxids"
         else
-            touch $tmpdir/nontarget.taxids
+            touch "$tmpdir/nontarget.taxids"
         fi
         
         if [ -n "$UNCERTAIN" ] && [ -n "{params.db}" ]; then
-            taxonkit list --data-dir {params.db}/taxonomy --ids "$UNCERTAIN" > $tmpdir/uncertain.taxids 2>/dev/null || touch $tmpdir/uncertain.taxids
+            taxonkit list --data-dir {params.db}/taxonomy --ids "$UNCERTAIN" > "$tmpdir/uncertain.taxids" 2>/dev/null || touch "$tmpdir/uncertain.taxids"
         else
-            touch $tmpdir/uncertain.taxids
+            touch "$tmpdir/uncertain.taxids"
         fi
 
         # Process standard kraken output and categorize IDs directly
-        awk '
+        awk -v nontarget_out="$tmpdir/nontarget_ids.txt" -v uncertain_out="$tmpdir/uncertain_ids.txt" '
             BEGIN {{FS="\\t"; OFS="\\t"}}
-            FNR==NR {{ n[$1]; next }}  # nontarget taxids
-            FNR==NR+1 {{ u[$1]; next }}  # uncertain taxids
+            FILENAME == ARGV[1] {{ n[$1]; next }}
+            FILENAME == ARGV[2] {{ u[$1]; next }}
             {{
                 status=$1; qname=$2; taxid=$3
                 
@@ -434,10 +437,10 @@ rule decontam_classify_unresolved:
                 if (status == "C") {{
                     class_count++
                     if (taxid in n) {{
-                        print qname > "'$tmpdir/nontarget_ids.txt'"
+                        print qname > nontarget_out
                         n_count++
                     }} else if (taxid in u && "{params.ecological_as_uncertain}" == "True") {{
-                        print qname > "'$tmpdir/uncertain_ids.txt'"
+                        print qname > uncertain_out
                         u_count++
                     }}
                 }} else {{
@@ -448,10 +451,10 @@ rule decontam_classify_unresolved:
                 print "sample\\tstage\\tclassified_pairs\\tunclassified_pairs\\tnontarget_pairs\\tuncertain_pairs" > "{output.stats}"
                 printf "%s\\tclassification\\t%d\\t%d\\t%d\\t%d\\n", "{wildcards.sample}", class_count+0, unclass_count+0, n_count+0, u_count+0 > "{output.stats}"
             }}
-        ' $tmpdir/nontarget.taxids $tmpdir/uncertain.taxids {output.kraken_output}
+        ' "$tmpdir/nontarget.taxids" "$tmpdir/uncertain.taxids" {output.kraken_output}
         
-        [ -f $tmpdir/nontarget_ids.txt ] && sort -u $tmpdir/nontarget_ids.txt | gzip -c > {output.nontarget_ids} || echo "# read_id" | gzip -c > {output.nontarget_ids}
-        [ -f $tmpdir/uncertain_ids.txt ] && sort -u $tmpdir/uncertain_ids.txt | gzip -c > {output.uncertain_ids} || echo "# read_id" | gzip -c > {output.uncertain_ids}
+        [ -f "$tmpdir/nontarget_ids.txt" ] && sort -u "$tmpdir/nontarget_ids.txt" | gzip -c > {output.nontarget_ids} || echo "# read_id" | gzip -c > {output.nontarget_ids}
+        [ -f "$tmpdir/uncertain_ids.txt" ] && sort -u "$tmpdir/uncertain_ids.txt" | gzip -c > {output.uncertain_ids} || echo "# read_id" | gzip -c > {output.uncertain_ids}
 
         printf "[decontam_classify_unresolved] collected k2 classification evidence for %s\n" {wildcards.sample} >> {log}
         """

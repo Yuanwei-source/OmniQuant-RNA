@@ -3,10 +3,9 @@
 Aggregate featureCounts results across all samples
 """
 
-import pandas as pd
 import argparse
-import os
-from pathlib import Path
+
+from aggregate_common import ensure_parent_dir, load_sample_tables, build_matrix
 
 def main():
     parser = argparse.ArgumentParser(description='Aggregate featureCounts results')
@@ -15,40 +14,25 @@ def main():
     parser.add_argument('--output-counts', required=True, help='Output counts matrix file')
     
     args = parser.parse_args()
-    Path(args.output_counts).parent.mkdir(parents=True, exist_ok=True)
-    
-    # Initialize lists to store data
-    counts_data = []
-    sample_names = []
-    
-    # Process each sample
-    for sample in args.samples:
-        counts_file = Path(args.input_dir) / sample / "counts.txt"
-        
-        if not counts_file.exists():
-            print(f"Warning: {counts_file} does not exist, skipping {sample}")
-            continue
-            
-        # Read featureCounts output (skip first line with program info)
-        df = pd.read_csv(counts_file, sep='\t', comment='#', skiprows=1)
-        
-        if len(counts_data) == 0:
-            # First sample - initialize with gene info
-            gene_info = df[['Geneid', 'Chr', 'Start', 'End', 'Strand', 'Length']].copy()
-            counts_data.append(gene_info)
-        
-        # Extract counts column (last column)
-        counts_col = df.iloc[:, -1]  # Last column contains the counts
-        counts_col.name = sample
-        counts_data.append(counts_col)
-        sample_names.append(sample)
-    
-    if not counts_data:
+    ensure_parent_dir(args.output_counts)
+
+    sample_names, sample_tables = load_sample_tables(
+        input_dir=args.input_dir,
+        samples=args.samples,
+        relative_filename="counts.txt",
+        reader_kwargs={"sep": "\t", "comment": "#", "skiprows": 1},
+    )
+
+    if not sample_names:
         print("Error: No valid count files found")
         return
-    
-    # Combine all data
-    combined_df = pd.concat(counts_data, axis=1)
+
+    combined_df = build_matrix(
+        tables_by_sample=sample_tables,
+        sample_order=sample_names,
+        id_columns=["Geneid", "Chr", "Start", "End", "Strand", "Length"],
+        value_extractor=lambda df: df.iloc[:, -1],
+    )
     
     # Save counts matrix
     combined_df.to_csv(args.output_counts, sep='\t', index=False)

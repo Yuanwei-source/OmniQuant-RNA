@@ -76,10 +76,10 @@ include: "../rules/quantification_stringtie.smk"
 rule all:
     input:
         # StringTie outputs
-        expand("results/04.quantification/native/stringtie/per_sample/{sample}/assembly/transcripts.gtf", sample=SAMPLES),
-        expand("results/04.quantification/native/stringtie/per_sample/{sample}/assembly/gene_abundances.tab", sample=SAMPLES),
-        "results/04.quantification/native/stringtie/merged/merged.gtf",
-        expand("results/04.quantification/native/stringtie/per_sample/{sample}/final/transcripts.gtf", sample=SAMPLES),
-        expand("results/04.quantification/native/stringtie/per_sample/{sample}/final/gene_abundances.tab", sample=SAMPLES),
+        expand("results/05.quantification/native/stringtie/per_sample/{sample}/assembly/transcripts.gtf", sample=SAMPLES),
+        expand("results/05.quantification/native/stringtie/per_sample/{sample}/assembly/gene_abundances.tab", sample=SAMPLES),
+        "results/05.quantification/native/stringtie/merged/merged.gtf",
+        expand("results/05.quantification/native/stringtie/per_sample/{sample}/final/transcripts.gtf", sample=SAMPLES),
+        expand("results/05.quantification/native/stringtie/per_sample/{sample}/final/gene_abundances.tab", sample=SAMPLES),
         # Compatibility outputs
         expand("results/quantification/{sample}/stringtie_abundances.tab", sample=SAMPLES)

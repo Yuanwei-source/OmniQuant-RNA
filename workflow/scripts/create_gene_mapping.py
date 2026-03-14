@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
 import os
-import re
 import argparse
 import sys
+
+from annotation_utils import parse_attributes
 
 def parse_arguments():
     """Parse command line arguments"""
@@ -35,15 +36,11 @@ def extract_gene_mapping(merged_gtf_file, verbose=False):
             if fields[2] != 'transcript':
                 continue
             
-            attributes = fields[8]
-            
-            # Extract gene_id and ref_gene_id
-            gene_id_match = re.search(r'gene_id "([^"]+)"', attributes)
-            ref_gene_id_match = re.search(r'ref_gene_id "([^"]+)"', attributes)
-            
-            if gene_id_match and ref_gene_id_match:
-                stringtie_id = gene_id_match.group(1)
-                original_id = ref_gene_id_match.group(1)
+            attrs = parse_attributes(fields[8])
+            stringtie_id = attrs.get("gene_id")
+            original_id = attrs.get("ref_gene_id")
+
+            if stringtie_id and original_id:
                 
                 if stringtie_id in gene_mapping:
                     if gene_mapping[stringtie_id] != original_id:
