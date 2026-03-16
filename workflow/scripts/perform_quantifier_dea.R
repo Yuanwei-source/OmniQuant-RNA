@@ -1,3 +1,4 @@
+# nolint start: object_usage_linter.
 # workflow/scripts/perform_quantifier_dea.R
 # Unified differential expression analysis for a single quantifier using featureCounts or tximport inputs
 
@@ -7,8 +8,6 @@ sink(log, type = "message")
 
 box::use(
   de = DESeq2,
-  ed = edgeR,
-  li = limma,
   rd = readr,
   tb = tibble,
   dp = dplyr,
@@ -49,22 +48,6 @@ assay <- se$assay
 results <- de$results
 vst <- de$vst
 
-calcNormFactors <- ed$calcNormFactors
-cpm <- ed$cpm
-DGEList <- ed$DGEList
-estimateDisp <- ed$estimateDisp
-glmQLFit <- ed$glmQLFit
-glmQLFTest <- ed$glmQLFTest
-scaleOffset <- ed$scaleOffset
-topTags <- ed$topTags
-
-contrasts.fit <- li$contrasts.fit
-eBayes <- li$eBayes
-lmFit <- li$lmFit
-makeContrasts <- li$makeContrasts
-topTable <- li$topTable
-voom <- li$voom
-
 run_tximport <- tx$tximport
 
 invisible(utils::globalVariables(c(
@@ -99,7 +82,8 @@ load_samples <- function(sample_file) {
     show_col_types = FALSE
   ) %>% as.data.frame()
   if ("group" %in% colnames(samples)) {
-    samples$group <- as.factor(samples$group)
+    sorted_groups <- sort(unique(as.character(samples$group)))
+    samples$group <- factor(as.character(samples$group), levels = sorted_groups)
   }
   rownames(samples) <- samples$sample
   samples
@@ -139,21 +123,6 @@ build_pairs <- function(groups, comparisons) {
     stop("No valid comparisons could be constructed from configuration.")
   }
   pairs
-}
-
-build_group_name_map <- function(groups) {
-  original_groups <- as.character(groups)
-  safe_groups <- make.names(original_groups)
-
-  if (anyDuplicated(safe_groups)) {
-    duplicated_safe <- unique(safe_groups[duplicated(safe_groups)])
-    stop(
-      "Group names become ambiguous after make.names(): ",
-      paste(duplicated_safe, collapse = ", ")
-    )
-  }
-
-  stats::setNames(safe_groups, original_groups)
 }
 
 load_gene_namespace <- function(namespace_path) {
@@ -322,19 +291,6 @@ internal_import_function <- function(input_mode, primary_input, tx2gene_master_p
   )
 }
 
-build_tximport_edgeR <- function(txi) {
-  cts <- txi$counts
-  normMat <- txi$length
-  normMat <- normMat / exp(rowMeans(log(normMat)))
-  normCts <- cts / normMat
-  eff.lib <- calcNormFactors(normCts) * colSums(normCts)
-  normMat <- sweep(normMat, 2, eff.lib, "*")
-  normMat <- log(normMat)
-  y <- DGEList(cts)
-  y <- scaleOffset(y, normMat)
-  y
-}
-
 annotate_result <- function(df, gene_metadata, quantifier, method, contrast, input_mode, mapping_policy, main_only) {
   metadata <- gene_metadata %>% distinct(.data$gene_id_standard, .keep_all = TRUE)
   df %>%
@@ -384,7 +340,8 @@ if (!group_col %in% colnames(samples)) {
   stop("Column 'group' not found in sample file.")
 }
 
-samples[[group_col]] <- factor(samples[[group_col]])
+group_levels <- sort(unique(as.character(samples[[group_col]])))
+samples[[group_col]] <- factor(as.character(samples[[group_col]]), levels = group_levels)
 
 design_formula <- as.formula(paste0("~ ", group_col))
 if (!is.null(config_dea$batch_column) && config_dea$batch_column %in% colnames(samples)) {
@@ -392,7 +349,7 @@ if (!is.null(config_dea$batch_column) && config_dea$batch_column %in% colnames(s
   cat("Including batch effect in design: ", config_dea$batch_column, "\n")
 }
 
-cat("Loading data for method:", quant_method, "\n")
+cat("Loading data for quantifier:", quant_method, "\n")
 imported <- internal_import_function(
   input_mode = input_mode,
   primary_input = primary_input,
@@ -434,9 +391,8 @@ write_tsv(
 )
 
 results_list <- list()
-groups <- as.character(unique(samples[[group_col]]))
+groups <- group_levels
 pairs <- build_pairs(groups, config_dea$comparisons)
-group_name_map <- build_group_name_map(groups)
 
 format_res <- function(res, method, contrast_name) {
   annotate_result(
@@ -451,109 +407,24 @@ format_res <- function(res, method, contrast_name) {
   )
 }
 
-# 1. DESeq2
-if ("deseq2" %in% config_dea$methods) {
-  cat("Running DESeq2...\n")
-  if (!is.null(imported$txi_raw)) {
-    txi_raw <- imported$txi_raw
-    txi_raw$counts <- txi_raw$counts[rownames(counts_matrix), common_samples, drop = FALSE]
-    txi_raw$abundance <- txi_raw$abundance[rownames(counts_matrix), common_samples, drop = FALSE]
-    txi_raw$length <- txi_raw$length[rownames(counts_matrix), common_samples, drop = FALSE]
-    dds <- DESeqDataSetFromTximport(txi = txi_raw, colData = samples, design = design_formula)
-  } else {
-    dds <- DESeqDataSetFromMatrix(countData = counts_matrix, colData = samples, design = design_formula)
-  }
-
-  dds <- DESeq(dds)
-  for (p in pairs) {
-    contrast_name <- paste0(p[1], "_vs_", p[2])
-    res <- results(dds, contrast = c(group_col, p[1], p[2]))
-    res_df <- format_res(res, "deseq2", contrast_name) %>%
-      rename(logFC = log2FoldChange, P.Value = pvalue, adj.P.Val = padj)
-    results_list[[paste("deseq2", contrast_name, sep = ".")]] <- res_df
-  }
+cat("Running DESeq2...\n")
+if (!is.null(imported$txi_raw)) {
+  txi_raw <- imported$txi_raw
+  txi_raw$counts <- txi_raw$counts[rownames(counts_matrix), common_samples, drop = FALSE]
+  txi_raw$abundance <- txi_raw$abundance[rownames(counts_matrix), common_samples, drop = FALSE]
+  txi_raw$length <- txi_raw$length[rownames(counts_matrix), common_samples, drop = FALSE]
+  dds <- DESeqDataSetFromTximport(txi = txi_raw, colData = samples, design = design_formula)
+} else {
+  dds <- DESeqDataSetFromMatrix(countData = counts_matrix, colData = samples, design = design_formula)
 }
 
-# 2. edgeR
-if ("edger" %in% config_dea$methods) {
-  cat("Running edgeR...\n")
-  edge_samples <- samples
-  edge_samples$group_safe <- factor(
-    unname(group_name_map[as.character(samples[[group_col]])]),
-    levels = unname(group_name_map[groups])
-  )
-  design_0 <- model.matrix(~ 0 + group_safe, data = edge_samples)
-  colnames(design_0) <- levels(edge_samples$group_safe)
-
-  if (!is.null(imported$txi_raw)) {
-    y <- build_tximport_edgeR(imported$txi_raw)
-    y <- y[rownames(counts_matrix), , keep.lib.sizes = FALSE]
-  } else {
-    y <- DGEList(counts = counts_matrix, group = samples[[group_col]])
-    y <- calcNormFactors(y)
-  }
-
-  y <- estimateDisp(y, design_0)
-  fit_0 <- glmQLFit(y, design_0)
-
-  for (p in pairs) {
-    contrast_name <- paste0(p[1], "_vs_", p[2])
-    safe_pair <- unname(group_name_map[p])
-    contrast_vec <- makeContrasts(contrasts = paste0(safe_pair[1], "-", safe_pair[2]), levels = design_0)
-    res <- glmQLFTest(fit_0, contrast = contrast_vec)
-    res_tab <- topTags(res, n = Inf)$table
-    res_df <- annotate_result(
-      res_tab %>% rownames_to_column("gene_id") %>% rename(P.Value = PValue, adj.P.Val = FDR),
-      gene_metadata = gene_metadata,
-      quantifier = quant_method,
-      method = "edger",
-      contrast = contrast_name,
-      input_mode = input_mode,
-      mapping_policy = mapping_policy,
-      main_only = main_only
-    )
-    results_list[[paste("edger", contrast_name, sep = ".")]] <- res_df
-  }
-}
-
-# 3. limma-voom
-if ("limma" %in% config_dea$methods) {
-  cat("Running limma-voom...\n")
-  limma_samples <- samples
-  limma_samples$group_safe <- factor(
-    unname(group_name_map[as.character(samples[[group_col]])]),
-    levels = unname(group_name_map[groups])
-  )
-  design_0 <- model.matrix(~ 0 + group_safe, data = limma_samples)
-  colnames(design_0) <- levels(limma_samples$group_safe)
-
-  limma_counts <- if (!is.null(imported$txi_scaled)) round(imported$txi_scaled$counts[rownames(counts_matrix), common_samples, drop = FALSE]) else counts_matrix
-  dge <- DGEList(counts = limma_counts)
-  keep_limma <- rownames(dge$counts) %in% rownames(counts_matrix)
-  dge <- dge[keep_limma, , keep.lib.sizes = FALSE]
-  dge <- calcNormFactors(dge)
-  v <- voom(dge, design_0, plot = FALSE)
-  fit <- lmFit(v, design_0)
-
-  for (p in pairs) {
-    contrast_name <- paste0(p[1], "_vs_", p[2])
-    safe_pair <- unname(group_name_map[p])
-    contrast_vec <- makeContrasts(contrasts = paste0(safe_pair[1], "-", safe_pair[2]), levels = design_0)
-    fit2 <- contrasts.fit(fit, contrast_vec)
-    fit2 <- eBayes(fit2)
-    res_tab <- topTable(fit2, number = Inf)
-    res_df <- annotate_result(
-      res_tab %>% rownames_to_column("gene_id"),
-      gene_metadata = gene_metadata,
-      quantifier = quant_method,
-      method = "limma",
-      contrast = contrast_name,
-      input_mode = input_mode,
-      mapping_policy = mapping_policy,
-      main_only = main_only
-    )
-    results_list[[paste("limma", contrast_name, sep = ".")]] <- res_df
-  }
+dds <- DESeq(dds)
+for (p in pairs) {
+  contrast_name <- paste0(p[1], "_vs_", p[2])
+  res <- results(dds, contrast = c(group_col, p[1], p[2]))
+  res_df <- format_res(res, "deseq2", contrast_name) %>%
+    rename(logFC = log2FoldChange, P.Value = pvalue, adj.P.Val = padj)
+  results_list[[paste("deseq2", contrast_name, sep = ".")]] <- res_df
 }
 
 cat("Saving results...\n")
@@ -561,14 +432,8 @@ for (name in names(results_list)) {
   write_csv(results_list[[name]], file.path(output_dir, paste0(name, ".csv")))
 }
 
-if ("deseq2" %in% config_dea$methods) {
-  vsd <- vst(dds, blind = FALSE)
-  norm_counts <- assay(vsd)
-} else if (!is.null(imported$txi_scaled)) {
-  norm_counts <- imported$txi_scaled$counts[rownames(counts_matrix), common_samples, drop = FALSE]
-} else {
-  norm_counts <- cpm(counts_matrix, log = TRUE)
-}
+vsd <- vst(dds, blind = FALSE)
+norm_counts <- assay(vsd)
 
 write.csv(norm_counts, normalized_counts_output)
 saveRDS(
@@ -586,3 +451,4 @@ saveRDS(
 )
 
 sink()
+# nolint end

@@ -1,3 +1,4 @@
+# nolint start: object_usage_linter.
 # workflow/scripts/run_consensus_dea.R
 # Consensus DEA across quantifiers using RRA as primary evidence and CCT as secondary evidence.
 
@@ -180,6 +181,9 @@ choose_direction <- function(up_support, down_support, rra_up_p, rra_down_p) {
   if (up_support == 0 && down_support == 0) {
     return("none")
   }
+  if (up_support > 0 && down_support > 0) {
+    return("mixed")
+  }
   if (up_support > down_support) {
     return("up")
   }
@@ -201,6 +205,10 @@ compute_consensus_logfc <- function(logfc_matrix, consensus_direction) {
   for (i in seq_len(nrow(logfc_matrix))) {
     values <- logfc_matrix[i, ]
     direction <- consensus_direction[i]
+    if (direction == "mixed" || direction == "none") {
+      res[i] <- NA_real_
+      next
+    }
     values <- values[!is.na(values)]
     if (length(values) == 0) {
       res[i] <- NA_real_
@@ -226,6 +234,10 @@ compute_logfc_cv <- function(logfc_matrix, consensus_direction) {
   for (i in seq_len(nrow(logfc_matrix))) {
     values <- logfc_matrix[i, ]
     direction <- consensus_direction[i]
+    if (direction == "mixed" || direction == "none") {
+      res[i] <- NA_real_
+      next
+    }
     values <- values[!is.na(values)]
     if (length(values) < 2) {
       res[i] <- NA_real_
@@ -330,10 +342,9 @@ classify_tier_with_override <- function(support_n, sign_consistency_n, best_rra_
   assign_tier(support_n, sign_consistency_n, best_rra_fdr, best_cct_fdr, logfc_cv, tiers_local, consensus_direction)
 }
 
-load_quantifier_result <- function(path, quantifier, method, contrast) {
+load_quantifier_result <- function(path, quantifier, contrast) {
   df <- read_csv(path, show_col_types = FALSE) %>%
     filter(
-      .data$method == method,
       .data$contrast == contrast,
       as_flag(.data$included_in_main, default = TRUE)
     ) %>%
@@ -355,7 +366,7 @@ load_quantifier_result <- function(path, quantifier, method, contrast) {
     select("gene_id_standard", "gene_name", "logFC", "P.Value", "adj.P.Val", "quantifier")
 }
 
-resolve_quantifier_result_path <- function(file_path, method, contrast) {
+resolve_quantifier_result_path <- function(file_path, contrast) {
   if (!file.exists(file_path)) {
     stop("Missing DEA contrast file: ", file_path)
   }
@@ -481,7 +492,7 @@ build_sensitivity_table <- function(consensus_df, tiers) {
 consensus_config <- snakemake@config[["consensus"]]
 config_dea <- snakemake@config[["dea"]]
 contrast <- snakemake@wildcards[["contrast"]]
-method <- consensus_config$methods[[1]] %||% "deseq2"
+method <- "deseq2"
 configured_quantifiers <- consensus_config$quantifiers %||% c("featurecounts", "stringtie", "salmon", "kallisto")
 p_clip <- as.numeric(consensus_config$p_clip %||% 1e-16)
 tiers <- consensus_config$tiers
@@ -510,8 +521,8 @@ dir.create(dirname(output_table), recursive = TRUE, showWarnings = FALSE)
 cat("Loading consensus inputs for contrast:", contrast, "\n")
 cat("Consensus input quantifiers:", paste(names(input_paths), collapse = ", "), "\n")
 data_list <- lapply(names(input_paths), function(quantifier) {
-  contrast_path <- resolve_quantifier_result_path(input_paths[[quantifier]], method, contrast)
-  load_quantifier_result(contrast_path, quantifier, method, contrast)
+  contrast_path <- resolve_quantifier_result_path(input_paths[[quantifier]], contrast)
+  load_quantifier_result(contrast_path, quantifier, contrast)
 })
 names(data_list) <- names(input_paths)
 
@@ -764,6 +775,7 @@ summary_df <- tibble(
     "universe_n",
     "significance_fdr_threshold",
     "significance_lfc_threshold",
+    "conflict_n",
     "tier_a_n",
     "tier_b_n",
     "tier_c_n",
@@ -780,6 +792,7 @@ summary_df <- tibble(
     length(universe),
     fdr_threshold,
     lfc_threshold,
+    sum(consensus_df$tier == "Conflict"),
     sum(consensus_df$tier == "Tier_A"),
     sum(consensus_df$tier == "Tier_B"),
     sum(consensus_df$tier == "Tier_C"),
@@ -802,3 +815,4 @@ plot_significance_upset(membership_df, quantifiers, output_upset, contrast)
 
 cat("Consensus DEA completed successfully.\n")
 sink()
+# nolint end

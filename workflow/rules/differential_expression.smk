@@ -2,7 +2,7 @@
 
 DEA_IMPORT_CONFIG = config.get("dea_import", {})
 DEA_CONFIG = config.get("dea", {})
-DEA_METHODS = [str(method) for method in DEA_CONFIG.get("methods", ["deseq2", "edger", "limma"])]
+DEA_METHOD = "deseq2"
 FEATURECOUNTS_MATRIX = "results/05.quantification/matrices/featurecounts/featurecounts_gene_counts_matrix.tsv"
 
 
@@ -19,8 +19,7 @@ def build_dea_contrasts():
 
 DEA_CONTRASTS = build_dea_contrasts()
 DEA_RESULT_TABLES = expand(
-    "results/06.differential_expression/{{quantifier}}/{method}.{contrast}.csv",
-    method=DEA_METHODS,
+    "results/06.differential_expression/{{quantifier}}/deseq2.{contrast}.csv",
     contrast=DEA_CONTRASTS
 )
 
@@ -93,7 +92,7 @@ rule integrate_dea:
 
 rule dea_all:
     """
-    Run DEA for all configured methods
+    Run DEA for all configured quantifiers
     """
     input:
         expand("results/06.differential_expression/{quantifier}/integration/PCA_plot.pdf", 

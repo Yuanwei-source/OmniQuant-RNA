@@ -7,8 +7,6 @@ dependencies:
   - r-base>=4.2
   - r-box
   - bioconductor-deseq2
-  - bioconductor-edger
-  - bioconductor-limma
   - bioconductor-tximport
   - bioconductor-rhdf5
   - bioconductor-genomicfeatures

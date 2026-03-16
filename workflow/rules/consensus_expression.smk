@@ -4,7 +4,7 @@ CONSENSUS_QUANTIFIERS = CONSENSUS_CONFIG.get(
     "quantifiers",
     ["featurecounts", "stringtie", "salmon", "kallisto"]
 )
-CONSENSUS_METHOD = CONSENSUS_CONFIG.get("methods", ["deseq2"])[0]
+CONSENSUS_METHOD = "deseq2"
 
 
 def build_consensus_contrasts():
@@ -32,9 +32,13 @@ def build_consensus_contrasts():
 CONSENSUS_CONTRASTS = build_consensus_contrasts()
 
 
+def get_consensus_contrast_path(quantifier, contrast):
+    return f"results/06.differential_expression/{quantifier}/{CONSENSUS_METHOD}.{contrast}.csv"
+
+
 def get_consensus_inputs(wildcards):
     return {
-        quantifier: f"results/06.differential_expression/{quantifier}/{CONSENSUS_METHOD}.{wildcards.contrast}.csv"
+        quantifier: get_consensus_contrast_path(quantifier, wildcards.contrast)
         for quantifier in CONSENSUS_QUANTIFIERS
     }
 
@@ -42,7 +46,7 @@ def get_consensus_inputs(wildcards):
 if CONSENSUS_ENABLED and CONSENSUS_CONTRASTS:
     rule run_consensus_dea:
         """
-        Integrate DESeq2 results across quantifiers into a consensus DEA layer.
+        Integrate explicit DESeq2 contrast files across quantifiers into a consensus DEA layer.
         """
         input:
             unpack(get_consensus_inputs),

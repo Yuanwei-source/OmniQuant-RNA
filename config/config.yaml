@@ -135,7 +135,6 @@ dea_import:
 
 consensus:
   enabled: true
-  methods: ["deseq2"]
   quantifiers: ["featurecounts", "stringtie", "salmon", "kallisto"]
   contrasts: "all"
   p_clip: 1.0e-16
@@ -162,7 +161,6 @@ consensus:
 
 # Differential Expression Analysis (DEA) parameters
 dea:
-  methods: ["deseq2", "edger", "limma"]  # 启用哪些方法
   comparisons: 
     - "60d_vs_1d"
   #  - "30d_vs_1d"
@@ -171,5 +169,5 @@ dea:
   fdr_threshold: 0.05
   lfc_threshold: 1.0
   min_count: 10
-  # For integrated filtering
-  min_methods: 3 # retain genes found by at least this many DEA methods (intersection of 3)
+  # For integrated filtering across DEA result tables
+  min_methods: 1 # retain genes found by at least this many DEA result tables
