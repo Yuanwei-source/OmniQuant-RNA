@@ -344,9 +344,27 @@ group_levels <- sort(unique(as.character(samples[[group_col]])))
 samples[[group_col]] <- factor(as.character(samples[[group_col]]), levels = group_levels)
 
 design_formula <- as.formula(paste0("~ ", group_col))
+
+covariates <- c()
 if (!is.null(config_dea$batch_column) && config_dea$batch_column %in% colnames(samples)) {
-  design_formula <- as.formula(paste0("~ ", config_dea$batch_column, " + ", group_col))
-  cat("Including batch effect in design: ", config_dea$batch_column, "\n")
+  covariates <- c(covariates, config_dea$batch_column)
+} else {
+  # Auto-detect common covariates in samples.tsv
+  possible_covariates <- c("batch", "sex", "gender", "age")
+  found_covs <- intersect(possible_covariates, colnames(samples))
+  if (length(found_covs) > 0) {
+    covariates <- found_covs
+  }
+}
+
+if (length(covariates) > 0) {
+  # Convert covariates to factors
+  for (cov in covariates) {
+    samples[[cov]] <- as.factor(samples[[cov]])
+  }
+  formula_str <- paste0("~ ", paste(covariates, collapse = " + "), " + ", group_col)
+  design_formula <- as.formula(formula_str)
+  cat("Including auto-detected covariates in design: ", paste(covariates, collapse = ", "), "\n")
 }
 
 cat("Loading data for quantifier:", quant_method, "\n")
@@ -372,6 +390,90 @@ if (!is.null(imported$txi_raw)) {
   imported$txi_scaled$counts <- imported$txi_scaled$counts[, common_samples, drop = FALSE]
   imported$txi_scaled$abundance <- imported$txi_scaled$abundance[, common_samples, drop = FALSE]
   imported$txi_scaled$length <- imported$txi_scaled$length[, common_samples, drop = FALSE]
+}
+
+# Aggregate duplicated IDs by summing them before DESeq2
+if (!is.null(imported$gene_metadata) && "gene_id_standard" %in% colnames(imported$gene_metadata)) {
+  # Create a mapping from rownames to gene_id_standard
+  id_map <- imported$gene_metadata %>%
+    select(gene_id_original = gene_id_standard, gene_id_standard) %>% # the rownames are gene_id_standard mostly, but just in case
+    distinct()
+  
+  # For tximport, it's already aggregated by tx2gene so rownames are clean.
+  # But we force sum any overlaps explicitly to be bulletproof.
+  counts_df <- as.data.frame(counts_data) %>% rownames_to_column("gene_id")
+  counts_df <- counts_df %>%
+    left_join(imported$gene_metadata %>% select(gene_id = gene_id_standard, gene_id_standard_new = gene_id_standard) %>% distinct(), by = "gene_id") %>%
+    mutate(final_id = coalesce(gene_id_standard_new, gene_id))
+    
+  summed_counts <- counts_df %>%
+    select(-gene_id, -gene_id_standard_new) %>%
+    dp$group_by(final_id) %>%
+    dp$summarise(dp$across(dp$everything(), sum, na.rm = TRUE)) %>%
+    column_to_rownames("final_id") %>%
+    as.matrix()
+    
+  counts_data <- summed_counts[rownames(summed_counts) != "", , drop = FALSE]
+  
+  if (!is.null(imported$txi_raw)) {
+    # If using txi, also aggregate txi_raw
+    txi_raw <- imported$txi_raw
+    txinames <- rownames(txi_raw$counts)
+    mapping <- data.frame(gene_id = txinames) %>%
+      left_join(imported$gene_metadata %>% select(gene_id = gene_id_standard, final_id = gene_id_standard) %>% distinct(), by="gene_id") %>%
+      mutate(final_id = coalesce(final_id, gene_id))
+      
+    txi_raw$counts <- as.matrix(aggregate(txi_raw$counts, by=list(mapping$final_id), FUN=sum)[,-1])
+    rownames(txi_raw$counts) <- unique(mapping$final_id)
+    # Recompute length appropriately (weighted average by abundance) or just average
+    txi_raw$length <- as.matrix(aggregate(txi_raw$length, by=list(mapping$final_id), FUN=mean)[,-1])
+    rownames(txi_raw$length) <- rownames(txi_raw$counts)
+    txi_raw$abundance <- as.matrix(aggregate(txi_raw$abundance, by=list(mapping$final_id), FUN=sum)[,-1])
+    rownames(txi_raw$abundance) <- rownames(txi_raw$counts)
+    imported$txi_raw <- txi_raw
+  }
+}
+
+# Aggregate duplicated IDs by summing them before DESeq2
+if (!is.null(imported$gene_metadata) && "gene_id_standard" %in% colnames(imported$gene_metadata)) {
+  # Create a mapping from rownames to gene_id_standard
+  id_map <- imported$gene_metadata %>%
+    select(gene_id_original = gene_id_standard, gene_id_standard) %>% # the rownames are gene_id_standard mostly, but just in case
+    distinct()
+  
+  # For tximport, it's already aggregated by tx2gene so rownames are clean.
+  # But we force sum any overlaps explicitly to be bulletproof.
+  counts_df <- as.data.frame(counts_data) %>% rownames_to_column("gene_id")
+  counts_df <- counts_df %>%
+    left_join(imported$gene_metadata %>% select(gene_id = gene_id_standard, gene_id_standard_new = gene_id_standard) %>% distinct(), by = "gene_id") %>%
+    mutate(final_id = coalesce(gene_id_standard_new, gene_id))
+    
+  summed_counts <- counts_df %>%
+    select(-gene_id, -gene_id_standard_new) %>%
+    dp$group_by(final_id) %>%
+    dp$summarise(dp$across(dp$everything(), sum, na.rm = TRUE)) %>%
+    column_to_rownames("final_id") %>%
+    as.matrix()
+    
+  counts_data <- summed_counts[rownames(summed_counts) != "", , drop = FALSE]
+  
+  if (!is.null(imported$txi_raw)) {
+    # If using txi, also aggregate txi_raw
+    txi_raw <- imported$txi_raw
+    txinames <- rownames(txi_raw$counts)
+    mapping <- data.frame(gene_id = txinames) %>%
+      left_join(imported$gene_metadata %>% select(gene_id = gene_id_standard, final_id = gene_id_standard) %>% distinct(), by="gene_id") %>%
+      mutate(final_id = coalesce(final_id, gene_id))
+      
+    txi_raw$counts <- as.matrix(aggregate(txi_raw$counts, by=list(mapping$final_id), FUN=sum)[,-1])
+    rownames(txi_raw$counts) <- unique(mapping$final_id)
+    # Recompute length appropriately (weighted average by abundance) or just average
+    txi_raw$length <- as.matrix(aggregate(txi_raw$length, by=list(mapping$final_id), FUN=mean)[,-1])
+    rownames(txi_raw$length) <- rownames(txi_raw$counts)
+    txi_raw$abundance <- as.matrix(aggregate(txi_raw$abundance, by=list(mapping$final_id), FUN=sum)[,-1])
+    rownames(txi_raw$abundance) <- rownames(txi_raw$counts)
+    imported$txi_raw <- txi_raw
+  }
 }
 
 counts_matrix <- round(counts_data)

@@ -110,7 +110,7 @@ rule decontam_prepare_host_reference:
     shell:
         """
         mkdir -p {DECONTAM_REF_DIR} $(dirname {log}) benchmarks/decontam
-        cat {input.transcriptome} {input.genome} > {output.reference}
+        cat {input.genome} > {output.reference}
         printf "[decontam_prepare_host_reference] built consolidated host rescue reference\n" > {log}
         """
 
@@ -214,6 +214,7 @@ rule decontam_prescreen:
         "benchmarks/decontam/{sample}_prescreen.tsv"
     conda:
         "../../envs/decontam_bowtie2.yaml"
+    shadow: "shallow"
     threads: 8
     resources:
         mem_mb=16000
@@ -230,19 +231,12 @@ rule decontam_prescreen:
         bowtie2 \
             -x {params.technical_index_prefix} \
             -1 {input.r1} -2 {input.r2} \
-            --al-conc-gz "$tmpdir/technical_mapped_%.fq.gz" \
             --no-mixed --no-discordant \
             --sensitive-local \
             -X {params.max_insert} \
             -p {threads} \
-            {params.extra} \
-            -S /dev/null >> {log} 2>&1
-
-        if [ -f "$tmpdir/technical_mapped_1.fq.gz" ] && [ -f "$tmpdir/technical_mapped_2.fq.gz" ]; then
-            seqkit seq -n "$tmpdir/technical_mapped_1.fq.gz" "$tmpdir/technical_mapped_2.fq.gz" | awk '{{print $1}}' | LC_ALL=C sort -u | gzip -c > {output.tech_ids}
-        else
-            echo "# read_id" | gzip -c > {output.tech_ids}
-        fi
+            {params.extra} 2>> {log} | \
+        samtools view -F 4 - | cut -f1 | LC_ALL=C sort -u | gzip -c > {output.tech_ids}
 
         matched_pairs=$(zcat {output.tech_ids} | awk '!/^#/' | wc -l)
         
@@ -275,6 +269,7 @@ rule decontam_host_rescue:
         "benchmarks/decontam/{sample}_host_rescue.tsv"
     conda:
         "../../envs/decontam_bowtie2.yaml"
+    shadow: "shallow"
     threads: 8
     resources:
         mem_mb=32000
@@ -297,7 +292,7 @@ rule decontam_host_rescue:
             -X {params.max_insert} \
             -p {threads} \
             {params.extra} 2>> {log} | \
-        samtools view -e '[NM]<=5 && mapq>=10' -f 2 - | \
+        samtools view -e '[NM]<=5' -f 2 - | \
         cut -f1 | uniq -c | awk '$1==2 {{print $2}}' > "$tmpdir/host_ids.raw"
         
         gzip -c "$tmpdir/host_ids.raw" > {output.host_ids}
@@ -311,18 +306,12 @@ rule decontam_host_rescue:
             bowtie2 \
                 -x "$ercc_prefix" \
                 -1 {input.r1} -2 {input.r2} \
-                --al-conc-gz "$tmpdir/ercc_mapped_%.fq.gz" \
                 --no-mixed --no-discordant \
                 --sensitive \
                 -X {params.max_insert} \
                 -p {threads} \
-                -S /dev/null >> {log} 2>&1
-
-            if [ -f "$tmpdir/ercc_mapped_1.fq.gz" ] && [ -f "$tmpdir/ercc_mapped_2.fq.gz" ]; then
-                seqkit seq -n "$tmpdir/ercc_mapped_1.fq.gz" "$tmpdir/ercc_mapped_2.fq.gz" | awk '{{print $1}}' | LC_ALL=C sort -u | gzip -c > {output.ercc_ids}
-            else
-                echo "# read_id" | gzip -c > {output.ercc_ids}
-            fi
+                2>> {log} | \
+            samtools view -F 4 - | cut -f1 | LC_ALL=C sort -u | gzip -c > {output.ercc_ids}
         else
             echo "# read_id" | gzip -c > {output.ercc_ids}
         fi
@@ -509,23 +498,23 @@ rule decontam_pair_decision:
         # We need to filter the FASTQ files using seqkit.
         
         # We use a single awk pass over all ID files to figure out the fate of EVERY read pair reported.
-        echo -e "sample\\tRetained_Host\\tRetained_ERCC\\tRetained_Uncertain\\tRemoved_Tech\\tRemoved_NonTarget" > {output.summary}
+        echo -e "sample\\tRescued_Host\\tRescued_ERCC\\tRetained_Uncertain\\tRemoved_Tech\\tRemoved_NonTarget" > {output.summary}
         
         tmpdir=$(mktemp -d {DECONTAM_TMP_DIR}/{wildcards.sample}.pair_decision.XXXXXX)
         trap 'rm -rf "$tmpdir"' EXIT
         
         awk -v retain_unc="{params.retain_unclassified}" '
             /^#/ {{ next }}
-            FNR==NR {{ fate[$1]="Retained_ERCC"; e++; next }}
+            FNR==NR {{ fate[$1]="Rescued_ERCC"; e++; next }}
             FNR==1 {{ file++ }}
-            file==1 {{ if (!fate[$1]) {{ fate[$1]="Retained_Host"; h++ }}; next }}
+            file==1 {{ if (!fate[$1]) {{ fate[$1]="Rescued_Host"; h++ }}; next }}
             file==2 {{ if (!fate[$1]) {{ fate[$1]="Removed_Tech"; t++ }}; next }}
             file==3 {{ if (!fate[$1]) {{ fate[$1]="Removed_NonTarget"; n++ }}; next }}
             file==4 {{ if (!fate[$1]) {{ fate[$1]="Retained_Uncertain"; u++ }}; next }}
             END {{
                 for (id in fate) {{
                     f = fate[id]
-                    if (f == "Retained_ERCC" || f == "Retained_Host" || (f == "Retained_Uncertain" && retain_unc == "True")) {{
+                    if (f == "Rescued_ERCC" || f == "Rescued_Host" || (f == "Retained_Uncertain" && retain_unc == "True")) {{
                         print id > "'$tmpdir'/clean_ids.txt"
                     }} else if (f == "Retained_Uncertain") {{
                         print id > "'$tmpdir'/uncertain_ids.txt"
@@ -606,7 +595,7 @@ rule decontam_project_summary:
 #   id: 'decontam_bargraph'
 #   title: 'Read Pairs Fate Allocation'
 #   ylab: 'Number of Read Pairs'
-Sample\tRetained_Host\tRetained_ERCC\tRetained_Uncertain\tRemoved_Tech\tRemoved_NonTarget
+Sample\tRescued_Host\tRescued_ERCC\tRetained_Uncertain\tRemoved_Tech\tRemoved_NonTarget
 EOF
         for summary in {input.summaries}; do
             tail -n +2 "$summary" >> {output}

@@ -70,12 +70,17 @@ clip_probabilities <- function(p, eps) {
   pmin(pmax(p, eps), 1 - eps)
 }
 
-cct_pvalue <- function(p_values, eps) {
+cct_pvalue <- function(p_values, eps, weights = NULL) {
   if (length(p_values) == 0) {
     return(1)
   }
+  if (is.null(weights)) {
+    weights <- rep(1 / length(p_values), length(p_values))
+  } else {
+    weights <- weights / sum(weights)
+  }
   p_values <- clip_probabilities(as.numeric(p_values), eps)
-  t_stat <- mean(tan((0.5 - p_values) * pi))
+  t_stat <- sum(weights * tan((0.5 - p_values) * pi))
   combined <- 0.5 - atan(t_stat) / pi
   pmin(pmax(combined, eps), 1)
 }
@@ -131,7 +136,7 @@ compute_rra_scores <- function(data_list, universe, direction) {
   result
 }
 
-compute_cct_scores <- function(logfc_matrix, p_matrix, quantifiers, universe, direction, eps) {
+compute_cct_scores <- function(logfc_matrix, p_matrix, quantifiers, universe, direction, eps, cct_weights = NULL) {
   mask <- !is.na(logfc_matrix) & !is.na(p_matrix)
   if (direction == "up") {
     mask <- mask & (logfc_matrix > 0)
@@ -354,14 +359,6 @@ load_quantifier_result <- function(path, quantifier, contrast) {
       quantifier = quantifier
     ) %>%
     filter(!is.na(.data$gene_id_standard), .data$gene_id_standard != "") %>%
-    arrange(.data$adj.P.Val, .data$P.Value, desc(abs(.data$logFC)))
-  
-  dups <- sum(duplicated(df$gene_id_standard))
-  if (dups > 0) {
-    warning(sprintf("Quantifier %s has %d duplicate standard gene IDs. Retaining the one with the smallest P-value.", quantifier, dups))
-  }
-  
-  df %>%
     distinct(.data$gene_id_standard, .keep_all = TRUE) %>%
     select("gene_id_standard", "gene_name", "logFC", "P.Value", "adj.P.Val", "quantifier")
 }
@@ -576,8 +573,26 @@ sign_consistency_n <- pmax(up_support_n, down_support_n)
 
 rra_up <- compute_rra_scores(data_list, universe, direction = "up") %>% rename(rra_up_p = "p", rra_up_fdr = "fdr")
 rra_down <- compute_rra_scores(data_list, universe, direction = "down") %>% rename(rra_down_p = "p", rra_down_fdr = "fdr")
-cct_up <- compute_cct_scores(logfc_matrix, p_matrix, names(data_list), universe, direction = "up", eps = p_clip) %>% rename(cct_up_p = "p", cct_up_fdr = "fdr")
-cct_down <- compute_cct_scores(logfc_matrix, p_matrix, names(data_list), universe, direction = "down", eps = p_clip) %>% rename(cct_down_p = "p", cct_down_fdr = "fdr")
+# Dynamic CCT weight calculation based on Spearman correlation to mitigate bias/independence violation
+cor_matrix <- suppressWarnings(cor(logfc_matrix, use = "pairwise.complete.obs", method = "spearman"))
+cct_weights <- rep(1, ncol(logfc_matrix))
+names(cct_weights) <- colnames(logfc_matrix)
+for (i in 1:(ncol(cor_matrix)-1)) {
+  for (j in (i+1):ncol(cor_matrix)) {
+    if (!is.na(cor_matrix[i, j]) && cor_matrix[i, j] > 0.98) {
+      cat(sprintf("WARNING: High rank correlation %.3f between %s and %s detected. Adjusting CCT weights to avoid false positive amplification.\n", 
+                  cor_matrix[i, j], colnames(cor_matrix)[i], colnames(cor_matrix)[j]))
+      cct_weights[i] <- cct_weights[i] * 0.7
+      cct_weights[j] <- cct_weights[j] * 0.7
+    }
+  }
+}
+cct_weights <- cct_weights / sum(cct_weights)
+cat("CCT Assigned Weights:\n")
+print(cct_weights)
+
+cct_up <- compute_cct_scores(logfc_matrix, p_matrix, names(data_list), universe, direction = "up", eps = p_clip, cct_weights = cct_weights) %>% rename(cct_up_p = "p", cct_up_fdr = "fdr")
+cct_down <- compute_cct_scores(logfc_matrix, p_matrix, names(data_list), universe, direction = "down", eps = p_clip, cct_weights = cct_weights) %>% rename(cct_down_p = "p", cct_down_fdr = "fdr")
 
 consensus_df <- consensus_df %>%
   left_join(rra_up, by = "gene_id_standard") %>%

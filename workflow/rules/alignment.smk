@@ -41,7 +41,7 @@ rule hisat2_build_index:
     shell:
         """
         mkdir -p {output}
-        hisat2-build -p {threads} {input.genome} \
+        hisat2-build -p {threads} <(seqkit replace -p " .+" -r "" {input.genome}) \
         {output}/genome 2> {log}
         """
 
@@ -93,7 +93,7 @@ rule star_build_index:
         mkdir -p {output}
         STAR --runMode genomeGenerate \
         --genomeDir {output} \
-        --genomeFastaFiles {input.genome} \
+        --genomeFastaFiles <(seqkit replace -p " .+" -r "" {input.genome}) \
         --sjdbGTFfile {input.gtf} \
         --sjdbOverhang {params.sjdbOverhang} \
         --runThreadN {threads} 2> {log}

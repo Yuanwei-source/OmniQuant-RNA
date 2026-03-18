@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
-"""Build a unified gene namespace table from the reference tx2gene mapping."""
+"""Build a unified gene namespace table from the reference tx2gene mapping using Polars."""
 
 import argparse
-import csv
 from pathlib import Path
-
-import pandas as pd
-
+import polars as pl
 
 def main():
     parser = argparse.ArgumentParser(description="Build gene namespace table")
@@ -14,29 +11,32 @@ def main():
     parser.add_argument("--output", required=True, help="Output TSV path")
     args = parser.parse_args()
 
-    df = pd.read_csv(args.tx2gene, sep="\t")
-    df["gene_name"] = df["gene_name"].fillna(df["gene_id"]).replace(".", pd.NA).fillna(df["gene_id"])
-    df["gene_name_filled"] = df["gene_name_filled"].fillna(1).astype(int)
+    df = pl.read_csv(args.tx2gene, separator="\t")
+    
+    # Fill backwards
+    df = df.with_columns([
+        pl.when(pl.col("gene_name") == ".").then(pl.col("gene_id")).otherwise(pl.col("gene_name")).fill_null(pl.col("gene_id")).alias("gene_name"),
+        pl.col("gene_name_filled").fill_null(1).cast(pl.Int32)
+    ])
 
-    namespace = (
-        df.groupby("gene_id", as_index=False)
-        .agg(
-            gene_name=("gene_name", "first"),
-            gene_name_filled=("gene_name_filled", "max"),
-            transcript_count=("transcript_id", "nunique"),
-        )
-        .sort_values("gene_id")
-    )
-    namespace["is_reference_gene"] = "TRUE"
-    namespace["allow_consensus_main"] = "TRUE"
-    namespace["namespace_source"] = "reference_gtf"
+    namespace = df.group_by("gene_id").agg([
+        pl.col("gene_name").first().alias("gene_name"),
+        pl.col("gene_name_filled").max().alias("gene_name_filled"),
+        pl.col("transcript_id").n_unique().alias("transcript_count")
+    ]).sort("gene_id")
+
+    namespace = namespace.with_columns([
+        pl.lit("TRUE").alias("is_reference_gene"),
+        pl.lit("TRUE").alias("allow_consensus_main"),
+        pl.lit("reference_gtf").alias("namespace_source")
+    ])
 
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    namespace.to_csv(output_path, sep="\t", index=False, quoting=csv.QUOTE_MINIMAL)
-
+    
+    namespace.write_csv(args.output, separator="\t")
+    
     print(f"[gene_namespace] Wrote {len(namespace)} genes to {output_path}")
-
 
 if __name__ == "__main__":
     main()

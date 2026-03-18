@@ -18,6 +18,7 @@ def get_multiqc_scan_targets():
         "results/02.trimmed_data/",
         "results/05.quantification/native/kallisto/",
         "results/05.quantification/native/salmon/",
+        "logs/"
     ]
     if decontam_enabled():
         scan_targets.append("results/03.decontam/")

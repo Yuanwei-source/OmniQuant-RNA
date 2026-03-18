@@ -146,5 +146,5 @@ rule extract_transcriptome:
         "logs/extract_transcriptome.log"
     shell:
         """
-        gffread -w {output.transcriptome} -g {input.genome} {input.gtf} 2> {log}
+        seqkit replace -p " .+" -r "" {input.genome} | gffread -w {output.transcriptome} -g - {input.gtf} 2> {log}
         """

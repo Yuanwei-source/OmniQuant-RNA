@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
-"""Build sample-to-file import manifests for tximport-based quantifiers."""
+"""Build sample-to-file import manifests for tximport-based quantifiers using Polars."""
 
 import argparse
-import csv
 from pathlib import Path
-
-import pandas as pd
-
+import polars as pl
 
 def build_manifest(samples, quantifier, import_type, file_role, resolver):
     rows = []
@@ -23,7 +20,7 @@ def build_manifest(samples, quantifier, import_type, file_role, resolver):
                 "file_role": file_role,
             }
         )
-    return pd.DataFrame(rows)
+    return pl.DataFrame(rows)
 
 
 def main():
@@ -34,8 +31,8 @@ def main():
     parser.add_argument("--stringtie-output", required=True, help="Output path for stringtie manifest")
     args = parser.parse_args()
 
-    samples_df = pd.read_csv(args.samples, sep="\t")
-    samples = samples_df["sample"].tolist()
+    samples_df = pl.read_csv(args.samples, separator="\t")
+    samples = samples_df["sample"].to_list()
 
     salmon = build_manifest(
         samples,
@@ -66,9 +63,8 @@ def main():
     ]:
         output_path = Path(path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        df.to_csv(output_path, sep="\t", index=False, quoting=csv.QUOTE_MINIMAL)
+        df.write_csv(output_path, separator="\t", quote_style="necessary")
         print(f"[import_manifest] Wrote {len(df)} rows to {output_path}")
-
 
 if __name__ == "__main__":
     main()

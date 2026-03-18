@@ -26,6 +26,7 @@ gene_counts_matrix_fixed.tsv
 gene_tpm_matrix_fixed.tsv
 gene_id_mapping.tsv
 Rplots.pdf
+experiments/
 
 # 临时文件
 *.tmp
