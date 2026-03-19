@@ -3,10 +3,8 @@
 
 from pathlib import Path
 import pandas as pd
+import polars as pl
 from typing import Dict, List, Callable, Optional, Tuple
-
-from annotation_utils import parse_attributes
-
 
 def ensure_parent_dir(path: Optional[str]) -> None:
     """Create output parent directory when a path is provided."""
@@ -81,24 +79,25 @@ def build_matrix(
 
 
 def parse_gtf_tx2gene(gtf_file: str) -> Dict[str, str]:
-    """Extract transcript_id -> gene_id mapping from a GTF file."""
+    """Extract transcript_id -> gene_id mapping from a GTF file using polars."""
+    df = pl.read_csv(
+        gtf_file, separator='\t', has_header=False, comment_prefix='#',
+        new_columns=['seqname', 'source', 'feature', 'start', 'end', 'score', 'strand', 'frame', 'attribute'],
+        dtypes={'start': pl.Int64, 'end': pl.Int64},
+        truncate_ragged_lines=True
+    ).filter(pl.col("feature").is_in(["transcript", "mRNA"]))
+    
     tx2gene = {}
-    with open(gtf_file, "r") as handle:
-        for line in handle:
-            if line.startswith("#"):
-                continue
+    
+    # Extract IDs using regex
+    # Support both GTF and GFF formats
+    df = df.select(
+        transcript_id=pl.col("attribute").str.extract(r'(?:transcript_id|ID)\s*(?:=|")([^";]+)', 1),
+        gene_id=pl.col("attribute").str.extract(r'(?:gene_id|Parent)\s*(?:=|")([^";]+)', 1)
+    ).drop_nulls()
 
-            fields = line.rstrip("\n").split("\t")
-            if len(fields) < 9:
-                continue
-
-            attrs = parse_attributes(fields[8])
-            transcript_id = attrs.get("transcript_id") or attrs.get("ID")
-            gene_id = attrs.get("gene_id") or attrs.get("Parent")
-            if transcript_id and gene_id:
-                tx2gene[transcript_id] = gene_id
-
-    return tx2gene
+    # Fast dictionary conversion without Python loops
+    return dict(zip(df["transcript_id"], df["gene_id"]))
 
 
 def map_transcript_to_gene(transcript_ids: pd.Series, tx2gene: Dict[str, str]) -> pd.Series:

@@ -9,9 +9,7 @@ FEATURECOUNTS_MATRIX = "results/05.quantification/matrices/featurecounts/feature
 def build_dea_contrasts():
     configured = DEA_CONFIG.get("comparisons", [])
     if configured == "all":
-        sample_table = samples_df if "samples_df" in globals() else pd.read_csv(config["samples"], sep="\t")
-        groups = sorted(sample_table["group"].astype(str).drop_duplicates().tolist())
-        return [f"{left}_vs_{right}" for idx, left in enumerate(groups) for right in groups[idx + 1:]]
+        return build_pairwise_contrasts()
     if isinstance(configured, str):
         return [configured]
     return [str(comp) for comp in configured]

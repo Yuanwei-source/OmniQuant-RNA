@@ -5,32 +5,12 @@
 ruleorder: hisat2_align > select_alignment_bam
 ruleorder: star_align > select_alignment_bam
 
-# Get selected aligner from config
-ALIGNER = config.get("aligner", "hisat2")
-
-# Function to get the appropriate BAM file based on selected aligner
-def get_aligner_bam(wildcards):
-    if ALIGNER == "hisat2":
-        return f"results/04.alignment/hisat2/{wildcards.sample}.bam"
-    elif ALIGNER == "star":
-        return f"results/04.alignment/star/{wildcards.sample}.bam"
-    else:
-        raise ValueError(f"Unknown aligner: {ALIGNER}. Choose 'hisat2' or 'star'")
-
-def get_aligner_bai(wildcards):
-    if ALIGNER == "hisat2":
-        return f"results/04.alignment/hisat2/{wildcards.sample}.bam.bai"
-    elif ALIGNER == "star":
-        return f"results/04.alignment/star/{wildcards.sample}.bam.bai"
-    else:
-        raise ValueError(f"Unknown aligner: {ALIGNER}. Choose 'hisat2' or 'star'")
-
 rule hisat2_build_index:
     """
     Build HISAT2 index from reference genome
     """
     input:
-        genome=config["reference"]["genome"]
+        genome=REFERENCE_GENOME
     output:
         directory("data/reference/hisat2_index")
     conda:
@@ -41,8 +21,10 @@ rule hisat2_build_index:
     shell:
         """
         mkdir -p {output}
-        hisat2-build -p {threads} <(seqkit replace -p " .+" -r "" {input.genome}) \
-        {output}/genome 2> {log}
+        tmp_genome=$(mktemp --suffix=.fa)
+        trap 'rm -f "$tmp_genome"' EXIT
+        awk '/^>/ {{sub(/ .*/, "", $0)}} {{print}}' {input.genome} > "$tmp_genome"
+        hisat2-build -p {threads} "$tmp_genome" {output}/genome 2> {log}
         """
 
 rule hisat2_align:
@@ -77,8 +59,8 @@ rule star_build_index:
     Build STAR index from reference genome
     """
     input:
-        genome=config["reference"]["genome"],
-        gtf=config["reference"]["gtf"]
+        genome=REFERENCE_GENOME,
+        gtf=REFERENCE_GTF
     output:
         directory("data/reference/star_index")
     conda:
@@ -91,9 +73,12 @@ rule star_build_index:
     shell:
         """
         mkdir -p {output}
+        tmp_genome=$(mktemp --suffix=.fa)
+        trap 'rm -f "$tmp_genome"' EXIT
+        awk '/^>/ {{sub(/ .*/, "", $0)}} {{print}}' {input.genome} > "$tmp_genome"
         STAR --runMode genomeGenerate \
         --genomeDir {output} \
-        --genomeFastaFiles <(seqkit replace -p " .+" -r "" {input.genome}) \
+        --genomeFastaFiles "$tmp_genome" \
         --sjdbGTFfile {input.gtf} \
         --sjdbOverhang {params.sjdbOverhang} \
         --runThreadN {threads} 2> {log}
@@ -146,8 +131,8 @@ rule select_alignment_bam:
     Select BAM file from chosen aligner for downstream analysis
     """
     input:
-        bam=get_aligner_bam,
-        bai=get_aligner_bai
+        bam=get_selected_alignment_bam,
+        bai=get_selected_alignment_bai
     output:
         bam="results/04.alignment/{sample}.bam",
         bai="results/04.alignment/{sample}.bam.bai"

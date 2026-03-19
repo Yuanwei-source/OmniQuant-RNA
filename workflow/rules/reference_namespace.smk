@@ -15,7 +15,7 @@ STRINGTIE_MANIFEST = f"{IMPORT_MANIFEST_DIR}/stringtie.tsv"
 rule build_reference_tx2gene:
     """Build reference transcript-to-gene mapping from the reference GTF."""
     input:
-        gtf=config["reference"]["gtf"]
+        gtf=REFERENCE_GTF
     output:
         REFERENCE_TX2GENE
     conda:
@@ -24,7 +24,7 @@ rule build_reference_tx2gene:
         "logs/reference_namespace/build_reference_tx2gene.log"
     shell:
         """
-        python workflow/scripts/build_reference_tx2gene.py \
+        python3 workflow/scripts/build_reference_tx2gene.py \
             --gtf {input.gtf} \
             --output {output} > {log} 2>&1
         """
@@ -42,7 +42,7 @@ rule build_gene_namespace:
         "logs/reference_namespace/build_gene_namespace.log"
     shell:
         """
-        python workflow/scripts/build_gene_namespace.py \
+        python3 workflow/scripts/build_gene_namespace.py \
             --tx2gene {input} \
             --output {output} > {log} 2>&1
         """
@@ -61,7 +61,7 @@ rule build_stringtie_bridge:
         "logs/reference_namespace/build_stringtie_bridge.log"
     shell:
         """
-        python workflow/scripts/build_stringtie_bridge.py \
+        python3 workflow/scripts/build_stringtie_bridge.py \
             --merged-gtf {input.merged_gtf} \
             --reference-tx2gene {input.reference_tx2gene} \
             --output {output} > {log} 2>&1
@@ -82,7 +82,7 @@ rule build_tx2gene_master:
         "logs/reference_namespace/build_tx2gene_master.log"
     shell:
         """
-        python workflow/scripts/build_tx2gene_master.py \
+        python3 workflow/scripts/build_tx2gene_master.py \
             --reference-tx2gene {input.reference_tx2gene} \
             --stringtie-bridge {input.stringtie_bridge} \
             --gene-namespace {input.gene_namespace} \
@@ -107,7 +107,7 @@ rule build_import_manifests:
         "logs/reference_namespace/build_import_manifests.log"
     shell:
         """
-        python workflow/scripts/build_import_manifests.py \
+        python3 workflow/scripts/build_import_manifests.py \
             --samples {input.samples} \
             --salmon-output {output.salmon} \
             --kallisto-output {output.kallisto} \

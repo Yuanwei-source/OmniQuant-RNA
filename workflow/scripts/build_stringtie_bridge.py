@@ -24,6 +24,15 @@ def main():
         comment_prefix="#",
         truncate_ragged_lines=True,
         ignore_errors=True,
+        schema_overrides={
+            "start": pl.Int64,
+            "end": pl.Int64,
+            "score": pl.Utf8,
+            "strand": pl.Utf8,
+            "frame": pl.Utf8,
+            "attribute": pl.Utf8,
+        },
+        null_values=".",
         new_columns=["seqname", "source", "feature", "start", "end", "score", "strand", "frame", "attribute"]
     ).filter(pl.col("feature") == "transcript")
 
@@ -33,16 +42,16 @@ def main():
     
     extracted = df.with_columns([
         pl.col("attribute").str.extract(tx_pat, 1).alias("transcript_id"),
-        pl.col("attribute").str.extract(gene_pat, 1).alias("gene_id"),
+        pl.col("attribute").str.extract(gene_pat, 1).alias("stringtie_gene_id"),
         pl.col("attribute").str.extract(ref_gene_pat, 1).alias("ref_gene_id")
     ]).filter(
         pl.col("transcript_id").is_not_null() & 
-        (pl.col("gene_id").is_not_null() | pl.col("ref_gene_id").is_not_null())
+        (pl.col("stringtie_gene_id").is_not_null() | pl.col("ref_gene_id").is_not_null())
     )
 
     # Use ref_gene_id if available, fallback to gene_id
     extracted = extracted.with_columns([
-        pl.coalesce(["ref_gene_id", "gene_id"]).alias("resolved_gene")
+        pl.coalesce(["ref_gene_id", "stringtie_gene_id"]).alias("resolved_gene")
     ])
     
     # Filter for novel StringTie transcripts (MSTRG.*)
@@ -61,7 +70,7 @@ def main():
         how="left"
     )
 
-    valid_bridge = valid_bridge.with_columns([
+    valid_bridge = valid_bridge.drop("stringtie_gene_id").with_columns([
         pl.lit("FALSE").alias("is_reference_gene"),
         pl.lit("FALSE").alias("allow_consensus_main"),
         pl.lit("stringtie_merge").alias("mapping_source")

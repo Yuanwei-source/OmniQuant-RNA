@@ -30,7 +30,7 @@ def main():
     combined_df = build_matrix(
         tables_by_sample=sample_tables,
         sample_order=sample_names,
-        id_columns=["Geneid", "Chr", "Start", "End", "Strand", "Length"],
+        id_columns=["Geneid"],
         value_extractor=lambda df: df.iloc[:, -1],
     )
     

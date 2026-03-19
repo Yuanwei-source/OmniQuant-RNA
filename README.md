@@ -62,6 +62,10 @@ OmniQuant-RNA/
   └── 08.reports/
 ```
 
+## 维护记录
+
+- 2026-03-19 全量测试修复与维护说明见 [experiments/audits/2026-03-19_全量测试修复与维护说明.md](experiments/audits/2026-03-19_全量测试修复与维护说明.md)。
+
 ## 环境要求
 
 - Linux 优先。
@@ -102,8 +106,8 @@ python workflow/scripts/generate_samples.py ./data/fastq -o ./data/fastq/samples
 将参考文件放入 [data/reference](data/reference)。流程会自动识别并标准化以下内容：
 
 - 基因组 FASTA。
-- GFF3 或 GTF 注释。
-- 转录组 FASTA，若缺失可自动提取。
+- GFF3、GFF 或 GTF 注释。
+- 转录组 FASTA 会基于基因组和注释自动提取，无需在主配置中提供。
 
 主配置见 [config/config.yaml](config/config.yaml)。
 
@@ -119,9 +123,7 @@ read_length: 150
 
 reference:
   genome: "data/reference/genome.fasta"
-  gff3: "data/reference/genome.gff3"
-  gtf: "data/reference/genome.gtf"
-  transcriptome: "data/reference/transcriptome.fasta"
+  annotation: "data/reference/genome.gff3"
 ```
 
 ### 多定量器统一命名空间

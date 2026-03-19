@@ -47,6 +47,7 @@ DESeqDataSetFromTximport <- de$DESeqDataSetFromTximport
 assay <- se$assay
 results <- de$results
 vst <- de$vst
+counts <- de$counts
 
 run_tximport <- tx$tximport
 
@@ -291,6 +292,51 @@ internal_import_function <- function(input_mode, primary_input, tx2gene_master_p
   )
 }
 
+build_gene_id_map <- function(gene_metadata) {
+  gene_metadata %>%
+    select(gene_id = gene_id_standard, final_id = gene_id_standard) %>%
+    distinct()
+}
+
+aggregate_matrix_by_gene_id <- function(matrix_data, gene_id_map, reducer) {
+  counts_df <- as.data.frame(matrix_data) %>% rownames_to_column("gene_id")
+  counts_df <- counts_df %>%
+    left_join(gene_id_map, by = "gene_id") %>%
+    mutate(final_id = coalesce(.data$final_id, .data$gene_id))
+
+  aggregated <- counts_df %>%
+    select(-gene_id) %>%
+    dp$group_by(final_id) %>%
+    dp$summarise(dp$across(dp$everything(), reducer)) %>%
+    column_to_rownames("final_id") %>%
+    as.matrix()
+
+  aggregated[rownames(aggregated) != "", , drop = FALSE]
+}
+
+aggregate_txi_by_gene_id <- function(txi, gene_id_map) {
+  mapped_ids <- tibble(gene_id = rownames(txi$counts)) %>%
+    left_join(gene_id_map, by = "gene_id") %>%
+    mutate(final_id = coalesce(.data$final_id, .data$gene_id))
+
+  txi$counts <- aggregate_matrix_by_gene_id(
+    txi$counts,
+    mapped_ids,
+    \(x) sum(x, na.rm = TRUE)
+  )
+  txi$length <- aggregate_matrix_by_gene_id(
+    txi$length,
+    mapped_ids,
+    \(x) mean(x, na.rm = TRUE)
+  )
+  txi$abundance <- aggregate_matrix_by_gene_id(
+    txi$abundance,
+    mapped_ids,
+    \(x) sum(x, na.rm = TRUE)
+  )
+  txi
+}
+
 annotate_result <- function(df, gene_metadata, quantifier, method, contrast, input_mode, mapping_policy, main_only) {
   metadata <- gene_metadata %>% distinct(.data$gene_id_standard, .keep_all = TRUE)
   df %>%
@@ -321,6 +367,7 @@ tx2gene_master_path <- snakemake@input[["tx2gene_master"]]
 gene_namespace_path <- snakemake@input[["gene_namespace"]]
 quant_method <- snakemake@wildcards[["quantifier"]]
 output_dir <- snakemake@output[["outdir"]]
+rds_output <- snakemake@output[["rds"]]
 normalized_counts_output <- snakemake@output[["norm_counts"]]
 import_summary_output <- snakemake@output[["import_summary"]]
 config_dea <- snakemake@config[["dea"]]
@@ -394,85 +441,15 @@ if (!is.null(imported$txi_raw)) {
 
 # Aggregate duplicated IDs by summing them before DESeq2
 if (!is.null(imported$gene_metadata) && "gene_id_standard" %in% colnames(imported$gene_metadata)) {
-  # Create a mapping from rownames to gene_id_standard
-  id_map <- imported$gene_metadata %>%
-    select(gene_id_original = gene_id_standard, gene_id_standard) %>% # the rownames are gene_id_standard mostly, but just in case
-    distinct()
-  
-  # For tximport, it's already aggregated by tx2gene so rownames are clean.
-  # But we force sum any overlaps explicitly to be bulletproof.
-  counts_df <- as.data.frame(counts_data) %>% rownames_to_column("gene_id")
-  counts_df <- counts_df %>%
-    left_join(imported$gene_metadata %>% select(gene_id = gene_id_standard, gene_id_standard_new = gene_id_standard) %>% distinct(), by = "gene_id") %>%
-    mutate(final_id = coalesce(gene_id_standard_new, gene_id))
-    
-  summed_counts <- counts_df %>%
-    select(-gene_id, -gene_id_standard_new) %>%
-    dp$group_by(final_id) %>%
-    dp$summarise(dp$across(dp$everything(), sum, na.rm = TRUE)) %>%
-    column_to_rownames("final_id") %>%
-    as.matrix()
-    
-  counts_data <- summed_counts[rownames(summed_counts) != "", , drop = FALSE]
-  
-  if (!is.null(imported$txi_raw)) {
-    # If using txi, also aggregate txi_raw
-    txi_raw <- imported$txi_raw
-    txinames <- rownames(txi_raw$counts)
-    mapping <- data.frame(gene_id = txinames) %>%
-      left_join(imported$gene_metadata %>% select(gene_id = gene_id_standard, final_id = gene_id_standard) %>% distinct(), by="gene_id") %>%
-      mutate(final_id = coalesce(final_id, gene_id))
-      
-    txi_raw$counts <- as.matrix(aggregate(txi_raw$counts, by=list(mapping$final_id), FUN=sum)[,-1])
-    rownames(txi_raw$counts) <- unique(mapping$final_id)
-    # Recompute length appropriately (weighted average by abundance) or just average
-    txi_raw$length <- as.matrix(aggregate(txi_raw$length, by=list(mapping$final_id), FUN=mean)[,-1])
-    rownames(txi_raw$length) <- rownames(txi_raw$counts)
-    txi_raw$abundance <- as.matrix(aggregate(txi_raw$abundance, by=list(mapping$final_id), FUN=sum)[,-1])
-    rownames(txi_raw$abundance) <- rownames(txi_raw$counts)
-    imported$txi_raw <- txi_raw
-  }
-}
+  gene_id_map <- build_gene_id_map(imported$gene_metadata)
+  counts_data <- aggregate_matrix_by_gene_id(
+    counts_data,
+    gene_id_map,
+    \(x) sum(x, na.rm = TRUE)
+  )
 
-# Aggregate duplicated IDs by summing them before DESeq2
-if (!is.null(imported$gene_metadata) && "gene_id_standard" %in% colnames(imported$gene_metadata)) {
-  # Create a mapping from rownames to gene_id_standard
-  id_map <- imported$gene_metadata %>%
-    select(gene_id_original = gene_id_standard, gene_id_standard) %>% # the rownames are gene_id_standard mostly, but just in case
-    distinct()
-  
-  # For tximport, it's already aggregated by tx2gene so rownames are clean.
-  # But we force sum any overlaps explicitly to be bulletproof.
-  counts_df <- as.data.frame(counts_data) %>% rownames_to_column("gene_id")
-  counts_df <- counts_df %>%
-    left_join(imported$gene_metadata %>% select(gene_id = gene_id_standard, gene_id_standard_new = gene_id_standard) %>% distinct(), by = "gene_id") %>%
-    mutate(final_id = coalesce(gene_id_standard_new, gene_id))
-    
-  summed_counts <- counts_df %>%
-    select(-gene_id, -gene_id_standard_new) %>%
-    dp$group_by(final_id) %>%
-    dp$summarise(dp$across(dp$everything(), sum, na.rm = TRUE)) %>%
-    column_to_rownames("final_id") %>%
-    as.matrix()
-    
-  counts_data <- summed_counts[rownames(summed_counts) != "", , drop = FALSE]
-  
   if (!is.null(imported$txi_raw)) {
-    # If using txi, also aggregate txi_raw
-    txi_raw <- imported$txi_raw
-    txinames <- rownames(txi_raw$counts)
-    mapping <- data.frame(gene_id = txinames) %>%
-      left_join(imported$gene_metadata %>% select(gene_id = gene_id_standard, final_id = gene_id_standard) %>% distinct(), by="gene_id") %>%
-      mutate(final_id = coalesce(final_id, gene_id))
-      
-    txi_raw$counts <- as.matrix(aggregate(txi_raw$counts, by=list(mapping$final_id), FUN=sum)[,-1])
-    rownames(txi_raw$counts) <- unique(mapping$final_id)
-    # Recompute length appropriately (weighted average by abundance) or just average
-    txi_raw$length <- as.matrix(aggregate(txi_raw$length, by=list(mapping$final_id), FUN=mean)[,-1])
-    rownames(txi_raw$length) <- rownames(txi_raw$counts)
-    txi_raw$abundance <- as.matrix(aggregate(txi_raw$abundance, by=list(mapping$final_id), FUN=sum)[,-1])
-    rownames(txi_raw$abundance) <- rownames(txi_raw$counts)
-    imported$txi_raw <- txi_raw
+    imported$txi_raw <- aggregate_txi_by_gene_id(imported$txi_raw, gene_id_map)
   }
 }
 
@@ -534,8 +511,13 @@ for (name in names(results_list)) {
   write_csv(results_list[[name]], file.path(output_dir, paste0(name, ".csv")))
 }
 
-vsd <- vst(dds, blind = FALSE)
-norm_counts <- assay(vsd)
+norm_counts <- tryCatch(
+  assay(vst(dds, blind = FALSE)),
+  error = function(e) {
+    message("vst failed, falling back to normalized counts: ", conditionMessage(e))
+    counts(dds, normalized = TRUE)
+  }
+)
 
 write.csv(norm_counts, normalized_counts_output)
 saveRDS(
@@ -549,7 +531,7 @@ saveRDS(
     novel_policy = novel_policy,
     import_summary = read_tsv(import_summary_output, show_col_types = FALSE)
   ),
-  file.path(output_dir, "dea_session.rds")
+  rds_output
 )
 
 sink()

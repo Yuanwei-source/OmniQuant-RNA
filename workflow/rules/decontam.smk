@@ -44,7 +44,7 @@ rule decontam_audit_reference_genome:
     (e.g., Wolbachia embedded in an insect genome). Generates a blacklist for downstream warnings.
     """
     input:
-        genome=lambda wildcards: get_decontam_reference("host_genome", config["reference"]["genome"])
+        genome=lambda wildcards: get_decontam_reference("host_genome", REFERENCE_GENOME)
     output:
         kraken_out=temp(f"{DECONTAM_REF_DIR}/reference_audit.kraken.out"),
         report=f"{DECONTAM_REF_DIR}/reference_audit.kraken.report.tsv",
@@ -99,8 +99,8 @@ rule decontam_prepare_host_reference:
     Transcriptome is concatenated before genome so the rescue layer stays transcript-aware.
     """
     input:
-        transcriptome=lambda wildcards: get_decontam_reference("host_transcriptome", config["reference"]["transcriptome"]),
-        genome=lambda wildcards: get_decontam_reference("host_genome", config["reference"]["genome"])
+        transcriptome=lambda wildcards: get_decontam_reference("host_transcriptome", REFERENCE_TRANSCRIPTOME),
+        genome=lambda wildcards: get_decontam_reference("host_genome", REFERENCE_GENOME)
     output:
         reference=f"{DECONTAM_REF_DIR}/host_rescue.fa"
     log:
@@ -157,14 +157,33 @@ rule decontam_prepare_technical_reference:
     shell:
         """
         mkdir -p {DECONTAM_REF_DIR} $(dirname {log}) benchmarks/decontam
+        tmp_reference=$(mktemp --suffix=.fa)
+        trap 'rm -f "$tmp_reference"' EXIT
+
         if [ -n "{input.references}" ]; then
-            cat {input.references} > {output.reference}
+            cat {input.references} > "$tmp_reference"
         else
-            cat > {output.reference} <<'EOF'
+            cat > "$tmp_reference" <<'EOF'
 >decontam_dummy
 ACGTACGTACGTACGT
 EOF
         fi
+
+        awk '
+            /^>/ {{
+                header = substr($0, 2)
+                gsub(/[[:space:]]+/, "_", header)
+                gsub(/[^A-Za-z0-9._:|=-]/, "_", header)
+                counts[header] += 1
+                if (counts[header] > 1) {{
+                    header = header "__" counts[header]
+                }}
+                print ">" header
+                next
+            }}
+            {{ print }}
+        ' "$tmp_reference" > {output.reference}
+
         printf "[decontam_prepare_technical_reference] built technical contamination reference\n" > {log}
         """
 

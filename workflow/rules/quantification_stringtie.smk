@@ -11,7 +11,7 @@ rule stringtie_assemble:
     """
     input:
         bam="results/04.alignment/{sample}.bam",
-        gtf=config["reference"]["gtf"]
+        gtf=REFERENCE_GTF
     output:
         gtf=f"{STRINGTIE_NATIVE_DIR}/per_sample" + "/{sample}/assembly/transcripts.gtf",
         abundance=f"{STRINGTIE_NATIVE_DIR}/per_sample" + "/{sample}/assembly/gene_abundances.tab",
@@ -57,7 +57,7 @@ rule stringtie_merge:
     """
     input:
         gtf_list=f"{STRINGTIE_NATIVE_DIR}/merged/gtf_list.txt",
-        reference_gtf=config["reference"]["gtf"]
+        reference_gtf=REFERENCE_GTF
     output:
         merged_gtf=f"{STRINGTIE_NATIVE_DIR}/merged/merged.gtf"
     conda:
@@ -125,7 +125,7 @@ rule create_gene_mapping:
         "logs/stringtie/create_gene_mapping.log"
     shell:
         """
-        python -u workflow/scripts/create_gene_mapping.py \
+        python3 -u workflow/scripts/create_gene_mapping.py \
             --merged-gtf {input.merged_gtf} \
             --output {output.mapping} \
             --verbose > {log} 2>&1
@@ -156,7 +156,7 @@ rule aggregate_stringtie_summary:
         "logs/stringtie/aggregate_summary.log"
     shell:
         """
-        python -u workflow/scripts/aggregate_stringtie.py \
+        python3 -u workflow/scripts/aggregate_stringtie.py \
             --input_dir {params.input_dir} \
             --pattern "{params.pattern}" \
             --gene-mapping {input.gene_mapping} \
@@ -193,7 +193,7 @@ rule aggregate_stringtie_original:
         "logs/stringtie/aggregate_original.log"
     shell:
         """
-        python -u workflow/scripts/aggregate_stringtie.py \
+        python3 -u workflow/scripts/aggregate_stringtie.py \
             --input_dir {params.input_dir} \
             --pattern "{params.pattern}" \
             --gene-mapping {input.gene_mapping} \

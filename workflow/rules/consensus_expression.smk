@@ -21,9 +21,7 @@ def build_consensus_contrasts():
             if explicit and explicit != ["all"]:
                 return explicit
 
-        sample_table = samples_df if "samples_df" in globals() else pd.read_csv(config["samples"], sep="\t")
-        groups = sorted(sample_table["group"].astype(str).drop_duplicates().tolist())
-        return [f"{left}_vs_{right}" for idx, left in enumerate(groups) for right in groups[idx + 1:]]
+        return build_pairwise_contrasts()
     if isinstance(configured, str):
         return [configured]
     return list(configured)

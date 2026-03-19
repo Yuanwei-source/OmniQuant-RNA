@@ -8,12 +8,9 @@ read_length: 150 # average read length
 # Reference files
 reference:
   # Path to reference genome FASTA file
-  genome: "data/reference/genome.fasta"
-  # Path to GTF/GFF3 annotation file
-  gff3: "data/reference/genome.gff3"
-  gtf: "data/reference/genome.gtf"  # GTF format annotation (will be converted from GFF3)
-  # Path to transcriptome FASTA file (will be extracted from genome + annotation if not provided)
-  transcriptome: "data/reference/transcriptome.fasta"
+  genome: "data/reference/Drosophila_melanogaster.BDGP6.54.dna.toplevel.fa"
+  # Path to annotation file, supports .gff3, .gff, and .gtf
+  annotation: "data/reference/Drosophila_melanogaster.BDGP6.54.115.chr.gff3"
 
 # Conda environments
 conda_env:
@@ -58,7 +55,7 @@ decontam:
     max_insert: 1000
     extra: ""
   references:
-    host_genome: "data/reference/genome.fasta"
+    host_genome: "data/reference/Drosophila_melanogaster.BDGP6.54.dna.toplevel.fa"
     host_transcriptome: "data/reference/transcriptome.fasta"
     ercc: "/mnt/nas/Database/decontam_references/ercc/ERCC92.fa"
     technical_contam:

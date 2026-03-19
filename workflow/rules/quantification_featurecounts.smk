@@ -1,5 +1,4 @@
 import os
-import gzip
 
 FEATURECOUNTS_CONFIG = config.get("featurecounts", {})
 FEATURECOUNTS_GTF = FEATURECOUNTS_CONFIG.get("normalized_gtf", "data/reference/genome.featurecounts.gtf")
@@ -8,99 +7,16 @@ FEATURECOUNTS_GTF_SUMMARY = FEATURECOUNTS_CONFIG.get(
     "data/reference/genome.featurecounts.summary.tsv"
 )
 
-def parse_annotation_attributes(attr_str):
-    attrs = {}
-    for raw_field in attr_str.strip().strip(";").split(";"):
-        field = raw_field.strip()
-        if not field:
-            continue
-
-        if "=" in field:
-            key, value = field.split("=", 1)
-        elif " " in field:
-            key, value = field.split(" ", 1)
-        else:
-            continue
-
-        attrs[key.strip()] = value.strip().strip('"')
-
-    return attrs
-
-def detect_gtf_attribute(gtf_path, target_type="gene"):
-    candidate_map = {
-        "gene": ("gene_id", "gene_name", "gene", "Parent", "ID"),
-        "transcript": ("transcript_id", "ID", "Parent"),
-        "exon": ("exon_id", "ID", "Parent", "gene_id", "transcript_id"),
-    }
-    feature_map = {
-        "gene": {"exon", "transcript", "gene"},
-        "transcript": {"transcript", "exon"},
-        "exon": {"exon"},
-    }
-    candidates = candidate_map.get(target_type, candidate_map["gene"])
-    valid_features = feature_map.get(target_type, feature_map["gene"])
-
-    if not os.path.exists(gtf_path):
-        return candidates[0]
-
-    attrs = {key: 0 for key in {attr for values in candidate_map.values() for attr in values}}
-    open_func = gzip.open if gtf_path.endswith(".gz") else open
-
-    try:
-        with open_func(gtf_path, "rt") as f:
-            lines_checked = 0
-            for line in f:
-                if line.startswith("#"):
-                    continue
-
-                parts = line.strip().split("\t")
-                if len(parts) < 9:
-                    continue
-                if parts[2] not in valid_features:
-                    continue
-
-                parsed_attrs = parse_annotation_attributes(parts[8])
-                for key in candidates:
-                    if key in parsed_attrs and parsed_attrs[key]:
-                        attrs[key] += 1
-
-                lines_checked += 1
-                if lines_checked >= 500:
-                    break
-    except Exception:
-        pass
-
-    for key in candidates:
-        if attrs.get(key, 0) > 0:
-            return key
-
-    return candidates[0]
-
-def resolve_featurecounts_attribute(config_value, gtf_path, target_type):
+def resolve_featurecounts_attribute(config_value, target_type="gene"):
     if config_value and str(config_value).strip().lower() != "auto":
         return config_value
 
-    return detect_gtf_attribute(gtf_path, target_type)
-
-GTF_PATH = config.get("reference", {}).get("gtf", "")
-
-FC_GTF_PATH = FEATURECOUNTS_GTF if os.path.exists(FEATURECOUNTS_GTF) else GTF_PATH
-
-FC_GENE = resolve_featurecounts_attribute(
-    FEATURECOUNTS_CONFIG.get("attribute", "auto"),
-    FC_GTF_PATH,
-    "gene"
-)
-FC_TRANSCRIPT = resolve_featurecounts_attribute(
-    FEATURECOUNTS_CONFIG.get("transcript_attribute", "auto"),
-    FC_GTF_PATH,
-    "transcript"
-)
-FC_EXON = resolve_featurecounts_attribute(
-    FEATURECOUNTS_CONFIG.get("exon_attribute", "auto"),
-    FC_GTF_PATH,
-    "exon"
-)
+    defaults = {
+        "gene": "gene_id",
+        "transcript": "transcript_id",
+        "exon": "exon_id"
+    }
+    return defaults.get(target_type, "gene_id")
 
 # Quantification Rules
 # Gene quantification using featureCounts
@@ -110,20 +26,22 @@ rule normalize_featurecounts_annotation:
     Normalize GTF attributes for featureCounts compatibility
     """
     input:
-        gtf=config["reference"]["gtf"]
+        gtf=REFERENCE_GTF
     output:
         gtf=FEATURECOUNTS_GTF,
         summary=FEATURECOUNTS_GTF_SUMMARY
     conda:
         "../../envs/qc.yaml"
+    threads: 8
     log:
         "logs/featurecounts/normalize_annotation.log"
     shell:
         """
-        python workflow/scripts/normalize_featurecounts_gtf.py \
+        python3 workflow/scripts/normalize_featurecounts_gtf.py \
             --input {input.gtf} \
             --output {output.gtf} \
-            --summary {output.summary} > {log} 2>&1
+            --summary {output.summary} \
+            --threads {threads} > {log} 2>&1
         """
 
 rule featurecounts_single:
@@ -142,7 +60,7 @@ rule featurecounts_single:
     params:
         extra=FEATURECOUNTS_CONFIG.get("extra", "-p -B -C"),
         feature_type=FEATURECOUNTS_CONFIG.get("feature_type", "exon"),
-        attribute=FC_GENE
+        attribute=resolve_featurecounts_attribute(FEATURECOUNTS_CONFIG.get("attribute", "auto"), "gene")
     log:
         "logs/featurecounts/{sample}.log"
     threads: 8
@@ -174,7 +92,7 @@ rule featurecounts_transcript:
     params:
         extra=FEATURECOUNTS_CONFIG.get("extra", "-p -B -C"),
         feature_type="transcript",
-        attribute=FC_TRANSCRIPT
+        attribute=resolve_featurecounts_attribute(FEATURECOUNTS_CONFIG.get("transcript_attribute", "auto"), "transcript")
     log:
         "logs/featurecounts/{sample}_transcript.log"
     threads: 8
@@ -206,7 +124,7 @@ rule featurecounts_exon:
     params:
         extra=FEATURECOUNTS_CONFIG.get("extra", "-p -B -C -f"),
         feature_type="exon",
-        attribute=FC_EXON
+        attribute=resolve_featurecounts_attribute(FEATURECOUNTS_CONFIG.get("exon_attribute", "auto"), "exon")
     log:
         "logs/featurecounts/{sample}_exon.log"
     threads: 8
@@ -251,7 +169,7 @@ rule aggregate_featurecounts_summary:
         "logs/featurecounts/aggregate_summary.log"
     shell:
         """
-        python workflow/scripts/aggregate_featurecounts.py \
+        python3 workflow/scripts/aggregate_featurecounts.py \
             --input-dir {params.input_dir} \
             --samples {params.samples} \
             --output-counts {output.counts} 2> {log}

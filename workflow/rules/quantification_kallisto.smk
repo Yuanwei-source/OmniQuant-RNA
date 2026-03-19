@@ -9,7 +9,7 @@ rule kallisto_index:
     Build Kallisto index from transcriptome
     """
     input:
-        config["reference"]["transcriptome"]
+        REFERENCE_TRANSCRIPTOME
     output:
         "data/reference/kallisto_index/transcriptome.idx"
     conda:
@@ -69,7 +69,7 @@ rule aggregate_kallisto_summary:
         "logs/kallisto/aggregate_summary.log"
     shell:
         """
-        python workflow/scripts/aggregate_kallisto.py \
+        python3 workflow/scripts/aggregate_kallisto.py \
             --input-dir {params.input_dir} \
             --samples {params.samples} \
             --output-counts {output.counts} \

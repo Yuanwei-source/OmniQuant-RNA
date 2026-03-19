@@ -9,8 +9,8 @@ rule salmon_index:
     Build Salmon index from transcriptome
     """
     input:
-        transcriptome=config["reference"]["transcriptome"],
-        genome=config["reference"]["genome"]
+        transcriptome=REFERENCE_TRANSCRIPTOME,
+        genome=REFERENCE_GENOME
     output:
         directory("data/reference/salmon_index")
     conda:
@@ -62,7 +62,7 @@ rule aggregate_salmon_summary:
     """
     input:
         quant_files=expand(f"{SALMON_NATIVE_DIR}" + "/{sample}/quant.sf", sample=SAMPLES),
-        gtf=config["reference"]["gtf"]
+        gtf=REFERENCE_GTF
     output:
         transcript_counts=f"{SALMON_MATRIX_DIR}/salmon_transcript_counts_matrix.tsv",
         transcript_tpm=f"{SALMON_MATRIX_DIR}/salmon_transcript_tpm_matrix.tsv",
@@ -77,7 +77,7 @@ rule aggregate_salmon_summary:
         "logs/salmon/aggregate_summary.log"
     shell:
         """
-        python workflow/scripts/aggregate_salmon.py \
+        python3 workflow/scripts/aggregate_salmon.py \
             --input-dir {params.input_dir} \
             --samples {params.samples} \
             --output-transcript-counts {output.transcript_counts} \

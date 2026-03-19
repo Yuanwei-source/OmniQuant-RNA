@@ -9,8 +9,27 @@ fi
 
 set -euo pipefail
 
+ensure_snakemake_on_path() {
+    if command -v snakemake >/dev/null 2>&1; then
+        return 0
+    fi
+
+    if command -v conda >/dev/null 2>&1; then
+        local conda_base
+        conda_base=$(conda info --base 2>/dev/null || true)
+        if [ -n "$conda_base" ] && [ -f "$conda_base/etc/profile.d/conda.sh" ]; then
+            # Load conda into this non-interactive shell so the entry script can self-bootstrap.
+            # shellcheck disable=SC1090
+            source "$conda_base/etc/profile.d/conda.sh"
+            conda activate snakemake >/dev/null 2>&1 || true
+        fi
+    fi
+
+    command -v snakemake >/dev/null 2>&1
+}
+
 # 检查 Snakemake 是否安装
-if ! command -v snakemake &> /dev/null; then
+if ! ensure_snakemake_on_path; then
     echo "错误: Snakemake 未安装. 请先安装 Snakemake:"
     echo "conda install -c bioconda snakemake"
     exit 1

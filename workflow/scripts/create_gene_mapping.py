@@ -3,8 +3,7 @@
 import os
 import argparse
 import sys
-
-from annotation_utils import parse_attributes
+import polars as pl
 
 def parse_arguments():
     """Parse command line arguments"""
@@ -19,41 +18,35 @@ def parse_arguments():
                         help='Enable verbose output')
     return parser.parse_args()
 
-def extract_gene_mapping(merged_gtf_file, verbose=False):
-    """Extract gene ID mapping from merged GTF file"""
-    gene_mapping = {}
+def extract_gene_mapping_polars(merged_gtf_file, verbose=False):
+    """Extract gene ID mapping from merged GTF file using polars"""
     
-    with open(merged_gtf_file) as f:
-        for line_no, line in enumerate(f, 1):
-            if line.startswith('#'):
-                continue
-            
-            fields = line.strip().split('\t')
-            if len(fields) < 9:
-                continue
-            
-            # Only process transcript lines
-            if fields[2] != 'transcript':
-                continue
-            
-            attrs = parse_attributes(fields[8])
-            stringtie_id = attrs.get("gene_id")
-            original_id = attrs.get("ref_gene_id")
-
-            if stringtie_id and original_id:
-                
-                if stringtie_id in gene_mapping:
-                    if gene_mapping[stringtie_id] != original_id:
-                        print(f"Warning: Conflicting mapping for {stringtie_id}: "
-                              f"{gene_mapping[stringtie_id]} vs {original_id}",
-                              file=sys.stderr)
-                else:
-                    gene_mapping[stringtie_id] = original_id
-                    
-                    if verbose and len(gene_mapping) <= 10:
-                        print(f"Mapping: {stringtie_id} -> {original_id}")
+    # Read GTF using polars
+    df = pl.read_csv(
+        merged_gtf_file,
+        separator='\t',
+        has_header=False,
+        comment_prefix='#',
+        new_columns=['seqname', 'source', 'feature', 'start', 'end', 'score', 'strand', 'frame', 'attribute'],
+        schema_overrides={
+            'start': pl.Int64,
+            'end': pl.Int64,
+            'score': pl.Utf8,
+            'strand': pl.Utf8,
+            'frame': pl.Utf8,
+            'attribute': pl.Utf8,
+        },
+        null_values='.',
+        truncate_ragged_lines=True 
+    ).filter(pl.col('feature') == 'transcript')
     
-    return gene_mapping
+    # Extract gene_id and ref_gene_id from attribute column
+    mapping_df = df.select(
+        stringtie_id=pl.col('attribute').str.extract(r'gene_id "([^"]+)"', 1),
+        original_id=pl.col('attribute').str.extract(r'ref_gene_id "([^"]+)"', 1)
+    ).drop_nulls().unique()
+    
+    return mapping_df
 
 def main():
     args = parse_arguments()
@@ -66,19 +59,16 @@ def main():
         print(f"Reading merged GTF file: {args.merged_gtf}")
     
     # Extract gene mapping
-    gene_mapping = extract_gene_mapping(args.merged_gtf, args.verbose)
+    mapping_df = extract_gene_mapping_polars(args.merged_gtf, args.verbose)
     
     if args.verbose:
-        print(f"Found {len(gene_mapping)} gene mappings")
+        print(f"Found {mapping_df.height} gene mappings")
     
     # Write mapping to file
-    with open(args.output, 'w') as f:
-        f.write("StringTie_ID\tOriginal_ID\n")
-        for stringtie_id, original_id in sorted(gene_mapping.items()):
-            f.write(f"{stringtie_id}\t{original_id}\n")
+    mapping_df.rename({"stringtie_id": "StringTie_ID", "original_id": "Original_ID"}).sort("StringTie_ID").write_csv(args.output, separator='\t')
     
     print(f"Gene mapping written to: {args.output}")
-    print(f"Total mappings: {len(gene_mapping)}")
+    print(f"Total mappings: {mapping_df.height}")
 
 if __name__ == "__main__":
     main()

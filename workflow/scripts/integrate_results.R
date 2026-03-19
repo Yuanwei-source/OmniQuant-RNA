@@ -115,7 +115,7 @@ for (contrast in contrasts) {
     mat <- norm_counts[high_conf_genes, , drop=FALSE]
     
     # Remove rows with zero variance to avoid scale() errors (NaN)
-    row_vars <- apply(mat, 1, var)
+    row_vars <- matrixStats::rowVars(as.matrix(mat))
     keep_rows <- row_vars > 1e-6 & !is.na(row_vars)
     mat <- mat[keep_rows, , drop=FALSE]
     
@@ -175,7 +175,7 @@ cat("Generating PCA plot...\n")
 norm_counts_clean <- norm_counts
 norm_counts_clean[!is.finite(norm_counts_clean)] <- 0
 # Remove zero variance rows
-row_vars_all <- apply(norm_counts_clean, 1, var)
+row_vars_all <- matrixStats::rowVars(as.matrix(norm_counts_clean))
 # Handle NAs in row_vars_all which can happen if a row is all NAs
 row_vars_all[is.na(row_vars_all)] <- 0
 norm_counts_clean <- norm_counts_clean[row_vars_all > 1e-6, ]

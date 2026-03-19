@@ -2,113 +2,7 @@
 # Author: Yuanwei
 # Date: 2025-08-09
 
-import pandas as pd
-from snakemake.utils import validate
-
-# Configuration file
-configfile: "config/config.yaml"
-
-import os
-import subprocess
-
-import sys
-
-
-
-# Get selected aligner from config
-ALIGNER = config.get("aligner", "hisat2")
-
-# Sample information
-samples_df = pd.read_csv(config["samples"], sep="\t").set_index("sample", drop=False)
-SAMPLES = samples_df["sample"].tolist()
-
-# Functions to get input files from samples.tsv
-def get_r1(wildcards):
-    return samples_df.loc[wildcards.sample, "fq1"]
-
-def get_r2(wildcards):
-    return samples_df.loc[wildcards.sample, "fq2"]
-
-FASTQ_SUFFIXES = [
-    ".fastq.gz",
-    ".fq.gz",
-    ".fastq.bz2",
-    ".fq.bz2",
-    ".fastq",
-    ".fq",
-]
-
-
-def get_fastq_suffix(path):
-    lower_path = str(path).lower()
-    for suffix in FASTQ_SUFFIXES:
-        if lower_path.endswith(suffix):
-            return suffix
-    raise ValueError(
-        f"Unsupported FASTQ extension for '{path}'. Supported suffixes: {', '.join(FASTQ_SUFFIXES)}"
-    )
-
-
-def get_fastqc_alias_path(sample, read_label, source_path):
-    suffix = get_fastq_suffix(source_path)
-    return os.path.join(".snakemake", "fastqc_aliases", sample, f"{sample}_{read_label}{suffix}")
-
-
-def decontam_enabled():
-    return bool(config.get("decontam", {}).get("enabled", False))
-
-
-def get_analysis_reads(wildcards):
-    if decontam_enabled():
-        return {
-            "r1": f"results/03.decontam/clean/{wildcards.sample}_R1_clean.fastq.gz",
-            "r2": f"results/03.decontam/clean/{wildcards.sample}_R2_clean.fastq.gz",
-        }
-
-    return {
-        "r1": f"results/02.trimmed_data/{wildcards.sample}_R1_trimmed.fastq.gz",
-        "r2": f"results/02.trimmed_data/{wildcards.sample}_R2_trimmed.fastq.gz",
-    }
-
-
-def get_analysis_r1(wildcards):
-    return get_analysis_reads(wildcards)["r1"]
-
-
-def get_analysis_r2(wildcards):
-    return get_analysis_reads(wildcards)["r2"]
-
-
-def get_decontam_all_targets(samples):
-    if not decontam_enabled():
-        return []
-
-    return [
-        expand("results/03.decontam/clean/{sample}_R1_clean.fastq.gz", sample=samples),
-        expand("results/03.decontam/clean/{sample}_R2_clean.fastq.gz", sample=samples),
-        expand("results/03.decontam/stats/{sample}_decision_summary.tsv", sample=samples),
-        expand("results/03.decontam/qc/{sample}_{read}_clean_fastqc.html", sample=samples, read=["R1", "R2"]),
-        expand("results/03.decontam/qc/{sample}_{read}_clean_fastqc.zip", sample=samples, read=["R1", "R2"]),
-        "results/03.decontam/stats/project_decontam_summary.tsv",
-        "results/03.decontam/reference/contam_scaffolds_blacklist.tsv",
-    ]
-
-# Define alignment output paths based on selected aligner
-def get_alignment_outputs(samples):
-    if ALIGNER == "hisat2":
-        return {
-            'bam': expand("results/04.alignment/hisat2/{sample}.bam", sample=samples),
-            'bai': expand("results/04.alignment/hisat2/{sample}.bam.bai", sample=samples)
-        }
-    elif ALIGNER == "star":
-        return {
-            'bam': expand("results/04.alignment/star/{sample}.bam", sample=samples),
-            'bai': expand("results/04.alignment/star/{sample}.bam.bai", sample=samples)
-        }
-    else:
-        raise ValueError(f"Unknown aligner: {ALIGNER}. Choose 'hisat2' or 'star'")
-
-ALIGNMENT_OUTPUTS = get_alignment_outputs(SAMPLES)
+include: "workflow/rules/common.smk"
 
 # Include all modular rules
 include: "workflow/rules/annotation_conversion.smk"
@@ -140,7 +34,7 @@ rule all:
         "data/reference/annotation_conversion_complete.flag",
         
         # Transcriptome extraction
-        config["reference"]["transcriptome"],
+        REFERENCE_TRANSCRIPTOME,
         
         # Raw data quality control
         expand("results/01.raw_qc/{sample}_{read}_fastqc.html", sample=SAMPLES, read=["R1", "R2"]),
