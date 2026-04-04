@@ -4,6 +4,10 @@ DECONTAM_CLEAN_DIR = f"{DECONTAM_DIR}/clean"
 DECONTAM_AUDIT_DIR = f"{DECONTAM_DIR}/audit"
 DECONTAM_STATS_DIR = f"{DECONTAM_DIR}/stats"
 DECONTAM_QC_DIR = f"{DECONTAM_DIR}/qc"
+DECONTAM_CLUES_DIR = f"{DECONTAM_DIR}/clues"
+DECONTAM_CLUES_TABLE_DIR = f"{DECONTAM_CLUES_DIR}/tables"
+DECONTAM_CLUES_PLOT_DIR = f"{DECONTAM_CLUES_DIR}/plots"
+DECONTAM_CLUES_INTERMEDIATE_DIR = f"{DECONTAM_CLUES_DIR}/intermediate"
 DECONTAM_REF_DIR = f"{DECONTAM_DIR}/reference"
 DECONTAM_INDEX_DIR = f"{DECONTAM_DIR}/index"
 DECONTAM_CONFIG = config.get("decontam", {})
@@ -513,11 +517,12 @@ rule decontam_pair_decision:
         # Priority: ERCC > Host > Tech > NonTarget > Uncertain
         # If a read ID string is in a higher priority, we ignore it in lower ones.
         
-        # We need a clean fastq: ERCC + Host + (Uncertain if retain_unclassified=True)
+        # The default clean fastq is host-oriented: ERCC + Host.
+        # Uncertain reads only re-enter clean when retain_unclassified=True is explicitly enabled.
         # We need to filter the FASTQ files using seqkit.
         
         # We use a single awk pass over all ID files to figure out the fate of EVERY read pair reported.
-        echo -e "sample\\tRescued_Host\\tRescued_ERCC\\tRetained_Uncertain\\tRemoved_Tech\\tRemoved_NonTarget" > {output.summary}
+        echo -e "sample\\tRescued_Host\\tRescued_ERCC\\tFlagged_Uncertain\\tRemoved_Tech\\tRemoved_NonTarget" > {output.summary}
         
         tmpdir=$(mktemp -d {DECONTAM_TMP_DIR}/{wildcards.sample}.pair_decision.XXXXXX)
         trap 'rm -rf "$tmpdir"' EXIT
@@ -529,19 +534,19 @@ rule decontam_pair_decision:
             file==1 {{ if (!fate[$1]) {{ fate[$1]="Rescued_Host"; h++ }}; next }}
             file==2 {{ if (!fate[$1]) {{ fate[$1]="Removed_Tech"; t++ }}; next }}
             file==3 {{ if (!fate[$1]) {{ fate[$1]="Removed_NonTarget"; n++ }}; next }}
-            file==4 {{ if (!fate[$1]) {{ fate[$1]="Retained_Uncertain"; u++ }}; next }}
+            file==4 {{ if (!fate[$1]) {{ fate[$1]="Flagged_Uncertain"; u++ }}; next }}
             END {{
                 for (id in fate) {{
                     f = fate[id]
-                    if (f == "Rescued_ERCC" || f == "Rescued_Host" || (f == "Retained_Uncertain" && retain_unc == "True")) {{
+                    if (f == "Rescued_ERCC" || f == "Rescued_Host" || (f == "Flagged_Uncertain" && retain_unc == "True")) {{
                         print id > "'$tmpdir'/clean_ids.txt"
-                    }} else if (f == "Retained_Uncertain") {{
+                    }} else if (f == "Flagged_Uncertain") {{
                         print id > "'$tmpdir'/uncertain_ids.txt"
                     }} else {{
                         print id > "'$tmpdir'/removed_ids.txt"
                     }}
                 }}
-                printf "%s\\t%d\\t%d\\t%d\\t%d\\t%d\\n", "{wildcards.sample}", h+0, e+0, u+0, t+0, n+0 > "{output.summary}"
+                printf "%s\\t%d\\t%d\\t%d\\t%d\\t%d\\n", "{wildcards.sample}", h+0, e+0, u+0, t+0, n+0 >> "{output.summary}"
             }}
         ' <(zcat -f {input.ercc_ids}) <(zcat -f {input.host_ids}) <(zcat -f {input.tech_ids}) <(zcat -f {input.nontarget_ids}) <(zcat -f {input.uncertain_ids})
         
@@ -593,6 +598,53 @@ rule clean_reads_fastqc:
         """
 
 
+rule decontam_microbe_clues_tables:
+    input:
+        sample_file=config["samples"],
+        decision_summaries=expand(f"{DECONTAM_STATS_DIR}" + "/{sample}_decision_summary.tsv", sample=SAMPLES),
+        classification_stats=expand(f"{DECONTAM_STATS_DIR}" + "/{sample}_classification_stats.tsv", sample=SAMPLES),
+        reports=expand(f"{DECONTAM_TMP_DIR}" + "/{sample}.kraken.report.tsv", sample=SAMPLES)
+    output:
+        burden=f"{DECONTAM_CLUES_TABLE_DIR}/sample_microbial_burden.tsv",
+        targets=f"{DECONTAM_CLUES_TABLE_DIR}/priority_targets.tsv",
+        composition=f"{DECONTAM_CLUES_INTERMEDIATE_DIR}/microbial_composition_long.tsv"
+    conda:
+        "../../envs/decontam.yaml"
+    log:
+        "logs/decontam/microbe_clues_tables.log"
+    script:
+        "../scripts/summarize_microbe_clues.py"
+
+
+rule decontam_microbe_composition_plot:
+    input:
+        composition=f"{DECONTAM_CLUES_INTERMEDIATE_DIR}/microbial_composition_long.tsv"
+    output:
+        plot=f"{DECONTAM_CLUES_PLOT_DIR}/microbial_composition_stacked_bar.pdf"
+    conda:
+        "../../envs/dea.yaml"
+    log:
+        "logs/decontam/microbe_composition_plot.log"
+    script:
+        "../scripts/plot_microbe_composition.R"
+
+
+rule decontam_host_context_overlay:
+    input:
+        burden=f"{DECONTAM_CLUES_TABLE_DIR}/sample_microbial_burden.tsv",
+        targets=f"{DECONTAM_CLUES_TABLE_DIR}/priority_targets.tsv",
+        sample_file=config["samples"],
+        normalized_counts="results/06.differential_expression/featurecounts/normalized_counts.csv"
+    output:
+        plot=f"{DECONTAM_CLUES_PLOT_DIR}/host_context_overlay.pdf"
+    conda:
+        "../../envs/dea.yaml"
+    log:
+        "logs/decontam/host_context_overlay.log"
+    script:
+        "../scripts/plot_host_context_overlay.R"
+
+
 rule decontam_project_summary:
     input:
         summaries=expand(f"{DECONTAM_STATS_DIR}" + "/{sample}_decision_summary.tsv", sample=SAMPLES)
@@ -614,10 +666,10 @@ rule decontam_project_summary:
 #   id: 'decontam_bargraph'
 #   title: 'Read Pairs Fate Allocation'
 #   ylab: 'Number of Read Pairs'
-Sample\tRescued_Host\tRescued_ERCC\tRetained_Uncertain\tRemoved_Tech\tRemoved_NonTarget
+Sample\tRescued_Host\tRescued_ERCC\tFlagged_Uncertain\tRemoved_Tech\tRemoved_NonTarget
 EOF
         for summary in {input.summaries}; do
-            tail -n +2 "$summary" >> {output}
+            awk 'NR==1 && tolower($1) == "sample" {{next}} {{print}}' "$summary" >> {output}
         done
         printf "[decontam_project_summary] aggregated %s samples\n" "$(echo {input.summaries} | wc -w)" > {log}
         """
