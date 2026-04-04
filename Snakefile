@@ -49,6 +49,7 @@ rule all:
 
         # Optional decontamination outputs
         get_decontam_all_targets(SAMPLES),
+        get_decontam_clues_targets(SAMPLES),
         
         # Reference indices
         "data/reference/kallisto_index/transcriptome.idx",
@@ -122,6 +123,11 @@ rule qc_only:
         expand("results/02.trimmed_data/{sample}_{read}_trimmed.fastq.gz", sample=SAMPLES, read=["R1", "R2"]),
         expand("results/02.trimmed_data/{sample}_{read}_trimmed_fastqc.html", sample=SAMPLES, read=["R1", "R2"]),
         get_decontam_all_targets(SAMPLES)
+
+rule microbe_clues_only:
+    """Build microbial clue sidecar outputs"""
+    input:
+        get_decontam_clues_targets(SAMPLES)
 
 rule stringtie_only:
     """Run only StringTie quantification with original gene IDs"""

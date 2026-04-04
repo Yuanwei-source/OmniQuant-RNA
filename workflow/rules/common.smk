@@ -84,6 +84,17 @@ def get_decontam_all_targets(samples):
         "results/03.decontam/reference/contam_scaffolds_blacklist.tsv",
     ]
 
+def get_decontam_clues_targets(samples):
+    if not decontam_enabled():
+        return []
+
+    return [
+        "results/03.decontam/clues/tables/sample_microbial_burden.tsv",
+        "results/03.decontam/clues/tables/priority_targets.tsv",
+        "results/03.decontam/clues/plots/microbial_composition_stacked_bar.pdf",
+        "results/03.decontam/clues/plots/host_context_overlay.pdf",
+    ]
+
 def get_selected_alignment_bam(wildcards):
     if ALIGNER == "hisat2":
         return f"results/04.alignment/hisat2/{wildcards.sample}.bam"

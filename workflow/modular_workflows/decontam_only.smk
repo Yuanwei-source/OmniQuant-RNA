@@ -81,4 +81,7 @@ rule all_decontam:
         expand("results/03.decontam/clean/{sample}_R2_clean.fastq.gz", sample=SAMPLES),
         expand("results/03.decontam/stats/{sample}_decision_summary.tsv", sample=SAMPLES),
         expand("results/03.decontam/qc/{sample}_{read}_clean_fastqc.html", sample=SAMPLES, read=["R1", "R2"]),
-        "results/03.decontam/stats/project_decontam_summary.tsv"
+        "results/03.decontam/stats/project_decontam_summary.tsv",
+        "results/03.decontam/clues/tables/sample_microbial_burden.tsv",
+        "results/03.decontam/clues/tables/priority_targets.tsv",
+        "results/03.decontam/clues/plots/microbial_composition_stacked_bar.pdf"

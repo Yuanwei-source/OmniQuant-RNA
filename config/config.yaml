@@ -70,10 +70,17 @@ decontam:
     report_minimizer_data: true
     memory_mapping: true
   policy:
-    retain_unclassified: true
+    retain_unclassified: false
     ecological_as_uncertain: true
     nontarget_taxids: [9606, 4751, 33090, 4932]
     uncertain_taxids: [2, 953, 6231, 6854, 6656, 10239]
+  clues:
+    top_taxa_n: 3
+    priority_targets:
+      wolbachia: 953
+      virus: 10239
+      fungi: 4751
+      environmental_bacteria: 2
   outputs:
     keep_audit_fastq: true
 

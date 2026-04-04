@@ -2,9 +2,12 @@
 
 OmniQuant-RNA 是一个基于 Snakemake 的 RNA-seq 自动化分析流程，面向多定量器并行分析、差异表达统计整合，以及在统一基因命名空间下进行共识差异表达分析。当前主流程已经覆盖原始数据质控、修剪、比对、定量、差异表达和共识输出，并支持在非模式昆虫等注释不完备场景下进行较稳健的 gene-level 整合分析。
 
+正式文档只保留少量稳定入口：本文件作为总入口，[docs/methods.md](docs/methods.md) 记录当前有效的方法与分析边界，[docs/outputs.md](docs/outputs.md) 解释正式输出语义，[docs/repository-guidelines.md](docs/repository-guidelines.md) 约束仓库协作与文档边界。`experiments/` 下的草稿、审计、临时 benchmark 和 AI 过程文档默认为本地工作资料，不作为远程仓库正式文档来源。
+
 ## 主要能力
 
 - 多定量器并行：featureCounts、StringTie、Salmon、Kallisto。
+- 可选去污染：默认输出面向宿主 DEA 的 clean reads，并保留非宿主/未决 reads 作为审计与微生物线索分析证据。
 - 差异表达分析：各定量器统一使用 DESeq2。
 - 共识差异表达：基于多定量器 DESeq2 结果进行 RRA 和 CCT 聚合。
 - 统一命名空间：构建 reference tx2gene、gene namespace、StringTie bridge 和 master tx2gene。
@@ -62,9 +65,12 @@ OmniQuant-RNA/
   └── 08.reports/
 ```
 
-## 维护记录
+## 正式文档
 
-- 2026-03-19 全量测试修复与维护说明见 [experiments/audits/2026-03-19_全量测试修复与维护说明.md](experiments/audits/2026-03-19_全量测试修复与维护说明.md)。
+- [README.md](README.md)：项目定位、运行方式、目录结构与主要输出。
+- [docs/methods.md](docs/methods.md)：当前有效的方法设计、decontam 主链路边界、微生物线索侧支定位与最小输出约定。
+- [docs/outputs.md](docs/outputs.md)：正式结果目录的语义、主链路与侧支输出如何使用。
+- [docs/repository-guidelines.md](docs/repository-guidelines.md)：仓库协作规范、文档收敛原则、哪些材料只保留本地。
 
 ## 环境要求
 
@@ -170,6 +176,21 @@ dea:
 
 当前版本的单定量器 DEA 已固定为 DESeq2，不再提供 edgeR 或 limma-voom 切换入口。
 
+### Decontam 微生物线索侧支
+
+```yaml
+decontam:
+  clues:
+    top_taxa_n: 3
+    priority_targets:
+      wolbachia: 953
+      virus: 10239
+      fungi: 4751
+      environmental_bacteria: 2
+```
+
+这一组配置控制 `results/03.decontam/clues/` 下的侧支汇总表和图形输出，包括 Top taxa 保留数量以及重点目标 taxid 面板。
+
 ## 运行方式
 
 ### 完整流程
@@ -239,8 +260,12 @@ snakemake --rulegraph | dot -Tpng > rules_graph.png
 
 - [results/01.raw_qc](results/01.raw_qc)：原始 reads FastQC 结果。
 - [results/02.trimmed_data](results/02.trimmed_data)：fastp 输出和修剪后 FastQC 结果。
-- [results/03.decontam](results/03.decontam)：去污染 clean reads、统计表和 clean FastQC 结果。
+- [results/03.decontam](results/03.decontam)：面向宿主主链路的 clean reads、去污染统计表、clean FastQC，以及可供独立微生物线索分析使用的审计 FASTQ/分类证据。
 - [results/08.reports](results/08.reports)：MultiQC 报告。
+
+`results/03.decontam` 的 clean 输出默认服务宿主主链路；微生物相关证据默认只作为独立侧支分析输入，不回灌 DEA 与共识主流程。详见 [docs/methods.md](docs/methods.md) 和 [docs/outputs.md](docs/outputs.md)。
+
+当前已经正式提供的微生物线索侧支输出包括 [results/03.decontam/clues/tables/sample_microbial_burden.tsv](results/03.decontam/clues/tables/sample_microbial_burden.tsv)、[results/03.decontam/clues/tables/priority_targets.tsv](results/03.decontam/clues/tables/priority_targets.tsv)、[results/03.decontam/clues/plots/microbial_composition_stacked_bar.pdf](results/03.decontam/clues/plots/microbial_composition_stacked_bar.pdf) 和 [results/03.decontam/clues/plots/host_context_overlay.pdf](results/03.decontam/clues/plots/host_context_overlay.pdf)。
 
 ### 3. 比对与定量
 
