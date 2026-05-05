@@ -1,8 +1,7 @@
 name: dea
 channels:
-  - conda-forge
-  - bioconda
-  - defaults
+  - https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge
+  - https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/bioconda
 dependencies:
   - r-base>=4.2
   - r-box

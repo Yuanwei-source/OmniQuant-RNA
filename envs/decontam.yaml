@@ -7,5 +7,4 @@ channels:
 dependencies:
   - python>=3.10
   - seqkit>=2.5
-  - xopen>=1.7
   - xopen>=2.0

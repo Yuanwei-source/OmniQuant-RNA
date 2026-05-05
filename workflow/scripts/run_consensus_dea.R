@@ -1,6 +1,6 @@
 # nolint start: object_usage_linter.
 # workflow/scripts/run_consensus_dea.R
-# Consensus DEA across quantifiers using RRA as primary evidence and CCT as secondary evidence.
+# Consensus DEA across quantifiers using RRA + CCT as dual co-primary consensus engines.
 
 log <- file(snakemake@log[[1]], open = "wt")
 sink(log)
@@ -70,21 +70,6 @@ clip_probabilities <- function(p, eps) {
   pmin(pmax(p, eps), 1 - eps)
 }
 
-cct_pvalue <- function(p_values, eps, weights = NULL) {
-  if (length(p_values) == 0) {
-    return(1)
-  }
-  if (is.null(weights)) {
-    weights <- rep(1 / length(p_values), length(p_values))
-  } else {
-    weights <- weights / sum(weights)
-  }
-  p_values <- clip_probabilities(as.numeric(p_values), eps)
-  t_stat <- sum(weights * tan((0.5 - p_values) * pi))
-  combined <- 0.5 - atan(t_stat) / pi
-  pmin(pmax(combined, eps), 1)
-}
-
 build_rank_list <- function(df, direction) {
   ranked <- df %>%
     filter(!is.na(.data$gene_id_standard), !is.na(.data$P.Value), !is.na(.data$logFC))
@@ -116,7 +101,7 @@ compute_rra_scores <- function(data_list, universe, direction) {
     glist = rank_lists,
     N = length(universe),
     method = "RRA",
-    exact = length(rank_lists) < 10
+    exact = FALSE  # Bonferroni-corrected; exact mode is numerically unstable per package docs
   )
 
   observed <- tibble(
@@ -136,7 +121,47 @@ compute_rra_scores <- function(data_list, universe, direction) {
   result
 }
 
-compute_cct_scores <- function(logfc_matrix, p_matrix, quantifiers, universe, direction, eps, cct_weights = NULL) {
+# Sensitivity analysis: rank aggregation via Borda mean with normal-approximation p-values.
+# This serves as an orthogonal check that Tier assignments are not solely
+# dependent on the RRA method's parametric assumptions.
+compute_rra_mean_scores <- function(data_list, universe, direction) {
+  rank_lists <- lapply(data_list, build_rank_list, direction = direction)
+  rank_lists <- rank_lists[lengths(rank_lists) > 0]
+
+  result <- tibble(
+    gene_id_standard = universe,
+    p = rep(1, length(universe))
+  )
+
+  if (length(rank_lists) == 0) {
+    result$fdr <- p.adjust(result$p, method = "BH")
+    return(result)
+  }
+
+  rra_out <- RobustRankAggreg::aggregateRanks(
+    glist = rank_lists,
+    N = length(universe),
+    method = "mean"
+  )
+
+  observed <- tibble(
+    gene_id_standard = rra_out$Name,
+    p_observed = rra_out$Score
+  )
+
+  result <- result %>%
+    left_join(observed, by = "gene_id_standard") %>%
+    mutate(
+      p = coalesce(.data$p_observed, .data$p),
+      p = clip_probabilities(.data$p, eps = 1e-300)
+    ) %>%
+    select(-any_of("p_observed"))
+
+  result$fdr <- p.adjust(result$p, method = "BH")
+  result
+}
+
+compute_cct_scores <- function(logfc_matrix, p_matrix, universe, direction, eps) {
   mask <- !is.na(logfc_matrix) & !is.na(p_matrix)
   if (direction == "up") {
     mask <- mask & (logfc_matrix > 0)
@@ -148,6 +173,7 @@ compute_cct_scores <- function(logfc_matrix, p_matrix, quantifiers, universe, di
   valid_p[!mask] <- NA
   valid_p <- clip_probabilities(valid_p, eps = eps)
   
+    # CCT co-primary consensus engine: parametric, correlation-robust, equal-weighted.
   tan_mat <- tan((0.5 - valid_p) * pi)
   t_stat <- rowMeans(tan_mat, na.rm = TRUE)
   
@@ -182,26 +208,26 @@ collapse_names <- function(values, labels) {
   labels[!is.na(values)]
 }
 
-choose_direction <- function(up_support, down_support, rra_up_p, rra_down_p) {
+choose_direction <- function(up_support, down_support) {
   if (up_support == 0 && down_support == 0) {
     return("none")
   }
-  if (up_support > 0 && down_support > 0) {
+  # Tie: no majority → mixed. Do NOT use p-values as a tiebreaker
+  # (that creates circular dependence between direction choice and significance).
+  if (up_support == down_support) {
     return("mixed")
   }
-  if (up_support > down_support) {
-    return("up")
+  # Both sides have some signal. Allow majority rule only when one side
+  # dominates clearly (≥2×). Marginal cases (e.g. 2 up + 1 down) → mixed.
+  if (up_support > 0 && down_support > 0) {
+    if (up_support >= 2 * down_support) return("up")
+    if (down_support >= 2 * up_support) return("down")
+    return("mixed")
   }
-  if (down_support > up_support) {
-    return("down")
-  }
-  if (rra_up_p < rra_down_p) {
-    return("up")
-  }
-  if (rra_down_p < rra_up_p) {
-    return("down")
-  }
-  "mixed"
+  # Only one side has any signal
+  if (up_support > down_support) return("up")
+  if (down_support > up_support) return("down")
+  "none"
 }
 
 compute_consensus_logfc <- function(logfc_matrix, consensus_direction) {
@@ -273,8 +299,12 @@ compute_logfc_cv <- function(logfc_matrix, consensus_direction) {
 }
 
 assign_tier <- function(support_n, sign_consistency_n, best_rra_fdr, best_cct_fdr, logfc_cv, tiers, consensus_direction="up") {
-  if (consensus_direction == "mixed") {
-    return("Conflict")
+  if (consensus_direction == "mixed" || consensus_direction == "none") {
+    return("unclassified")
+  }
+  # Single-quantifier signal is not consensus — requires at least 2 quantifiers
+  if (support_n < 2) {
+    return("unclassified")
   }
 
   if (
@@ -313,6 +343,7 @@ assign_tier <- function(support_n, sign_consistency_n, best_rra_fdr, best_cct_fd
 
 list_failures <- function(support_n, sign_consistency_n, best_rra_fdr, best_cct_fdr, logfc_cv, tier_cfg, consensus_direction="up") {
   if (consensus_direction == "mixed") return("mixed_direction")
+  if (consensus_direction == "none")  return("no_signal")
   
   failures <- c()
   if (support_n < tier_cfg$min_support) failures <- c(failures, "support")
@@ -415,7 +446,7 @@ plot_scatter <- function(consensus_df, output_path, contrast) {
   ggsave(output_path, plot = p, width = 7, height = 6)
 }
 
-plot_consensus_volcano <- function(consensus_df, output_path, contrast, p_clip) {
+plot_consensus_volcano <- function(consensus_df, output_path, contrast, p_clip, lfc_thresh) {
   plot_df <- consensus_df %>%
     mutate(
       volcano_y = -log10(pmax(.data$best_rra_fdr, p_clip)),
@@ -424,7 +455,7 @@ plot_consensus_volcano <- function(consensus_df, output_path, contrast, p_clip) 
 
   p <- ggplot(plot_df, aes(x = .data$consensus_logFC, y = .data$volcano_y, color = .data$tier)) +
     geom_point(alpha = 0.75, size = 1.6) +
-    geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
+    geom_vline(xintercept = c(-lfc_thresh, 0, lfc_thresh), linetype = "dashed", color = "grey50") +
     geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "grey50") +
     labs(
       title = paste0("Consensus volcano: ", contrast),
@@ -573,36 +604,25 @@ sign_consistency_n <- pmax(up_support_n, down_support_n)
 
 rra_up <- compute_rra_scores(data_list, universe, direction = "up") %>% rename(rra_up_p = "p", rra_up_fdr = "fdr")
 rra_down <- compute_rra_scores(data_list, universe, direction = "down") %>% rename(rra_down_p = "p", rra_down_fdr = "fdr")
-# Dynamic CCT weight calculation based on Spearman correlation to mitigate bias/independence violation
-cor_matrix <- suppressWarnings(cor(logfc_matrix, use = "pairwise.complete.obs", method = "spearman"))
-cct_weights <- rep(1, ncol(logfc_matrix))
-names(cct_weights) <- colnames(logfc_matrix)
-for (i in 1:(ncol(cor_matrix)-1)) {
-  for (j in (i+1):ncol(cor_matrix)) {
-    if (!is.na(cor_matrix[i, j]) && cor_matrix[i, j] > 0.98) {
-      cat(sprintf("WARNING: High rank correlation %.3f between %s and %s detected. Adjusting CCT weights to avoid false positive amplification.\n", 
-                  cor_matrix[i, j], colnames(cor_matrix)[i], colnames(cor_matrix)[j]))
-      cct_weights[i] <- cct_weights[i] * 0.7
-      cct_weights[j] <- cct_weights[j] * 0.7
-    }
-  }
-}
-cct_weights <- cct_weights / sum(cct_weights)
-cat("CCT Assigned Weights:\n")
-print(cct_weights)
 
-cct_up <- compute_cct_scores(logfc_matrix, p_matrix, names(data_list), universe, direction = "up", eps = p_clip, cct_weights = cct_weights) %>% rename(cct_up_p = "p", cct_up_fdr = "fdr")
-cct_down <- compute_cct_scores(logfc_matrix, p_matrix, names(data_list), universe, direction = "down", eps = p_clip, cct_weights = cct_weights) %>% rename(cct_down_p = "p", cct_down_fdr = "fdr")
+# Sensitivity: Borda mean aggregation as orthogonal rank-aggregation check
+rra_mean_up   <- compute_rra_mean_scores(data_list, universe, direction = "up")   %>% rename(rra_mean_up_p = "p", rra_mean_up_fdr = "fdr")
+rra_mean_down <- compute_rra_mean_scores(data_list, universe, direction = "down") %>% rename(rra_mean_down_p = "p", rra_mean_down_fdr = "fdr")
+
+cct_up <- compute_cct_scores(logfc_matrix, p_matrix, universe, direction = "up", eps = p_clip) %>% rename(cct_up_p = "p", cct_up_fdr = "fdr")
+cct_down <- compute_cct_scores(logfc_matrix, p_matrix, universe, direction = "down", eps = p_clip) %>% rename(cct_down_p = "p", cct_down_fdr = "fdr")
 
 consensus_df <- consensus_df %>%
   left_join(rra_up, by = "gene_id_standard") %>%
   left_join(rra_down, by = "gene_id_standard") %>%
+  left_join(rra_mean_up, by = "gene_id_standard") %>%
+  left_join(rra_mean_down, by = "gene_id_standard") %>%
   left_join(cct_up, by = "gene_id_standard") %>%
   left_join(cct_down, by = "gene_id_standard")
 
 consensus_direction <- vapply(
   seq_len(nrow(consensus_df)),
-  function(i) choose_direction(up_support_n[i], down_support_n[i], consensus_df$rra_up_p[i], consensus_df$rra_down_p[i]),
+  function(i) choose_direction(up_support_n[i], down_support_n[i]),
   character(1)
 )
 
@@ -641,15 +661,20 @@ logfc_sd[is.na(logfc_sd)] <- NA_real_
 
 logfc_cv <- compute_logfc_cv(logfc_matrix, consensus_direction)
 
-best_rra_p <- ifelse(consensus_direction == "down", consensus_df$rra_down_p, consensus_df$rra_up_p)
-best_rra_fdr <- ifelse(consensus_direction == "down", consensus_df$rra_down_fdr, consensus_df$rra_up_fdr)
-best_cct_p <- ifelse(consensus_direction == "down", consensus_df$cct_down_p, consensus_df$cct_up_p)
-best_cct_fdr <- ifelse(consensus_direction == "down", consensus_df$cct_down_fdr, consensus_df$cct_up_fdr)
+best_rra_p <- ifelse(consensus_direction == "up",   consensus_df$rra_up_p,
+              ifelse(consensus_direction == "down", consensus_df$rra_down_p, NA_real_))
+best_rra_fdr <- ifelse(consensus_direction == "up",   consensus_df$rra_up_fdr,
+                ifelse(consensus_direction == "down", consensus_df$rra_down_fdr, NA_real_))
+best_cct_p <- ifelse(consensus_direction == "up",   consensus_df$cct_up_p,
+              ifelse(consensus_direction == "down", consensus_df$cct_down_p, NA_real_))
+best_cct_fdr <- ifelse(consensus_direction == "up",   consensus_df$cct_up_fdr,
+                ifelse(consensus_direction == "down", consensus_df$cct_down_fdr, NA_real_))
 
-best_rra_p[consensus_direction == "mixed"] <- pmin(consensus_df$rra_up_p[consensus_direction == "mixed"], consensus_df$rra_down_p[consensus_direction == "mixed"])
-best_rra_fdr[consensus_direction == "mixed"] <- pmin(consensus_df$rra_up_fdr[consensus_direction == "mixed"], consensus_df$rra_down_fdr[consensus_direction == "mixed"])
-best_cct_p[consensus_direction == "mixed"] <- pmin(consensus_df$cct_up_p[consensus_direction == "mixed"], consensus_df$cct_down_p[consensus_direction == "mixed"])
-best_cct_fdr[consensus_direction == "mixed"] <- pmin(consensus_df$cct_up_fdr[consensus_direction == "mixed"], consensus_df$cct_down_fdr[consensus_direction == "mixed"])
+# Sensitivity: best RRA FDR under Borda mean aggregation
+best_mean_rra_p <- ifelse(consensus_direction == "up",   consensus_df$rra_mean_up_p,
+                   ifelse(consensus_direction == "down", consensus_df$rra_mean_down_p, NA_real_))
+best_mean_rra_fdr <- ifelse(consensus_direction == "up",   consensus_df$rra_mean_up_fdr,
+                     ifelse(consensus_direction == "down", consensus_df$rra_mean_down_fdr, NA_real_))
 
 tier <- vapply(
   seq_len(nrow(consensus_df)),
@@ -683,6 +708,37 @@ tier_blocker_c <- vapply(
   seq_len(nrow(consensus_df)),
   function(i) list_failures(support_n[i], sign_consistency_n[i], best_rra_fdr[i], best_cct_fdr[i], logfc_cv[i], tiers$tier_c, consensus_direction[i]),
   character(1)
+)
+
+# Sensitivity: tier assignment using Borda mean aggregation instead of RRA
+tier_mean <- vapply(
+  seq_len(nrow(consensus_df)),
+  function(i) {
+    assign_tier(
+      support_n = support_n[i],
+      sign_consistency_n = sign_consistency_n[i],
+      best_rra_fdr = best_mean_rra_fdr[i],   # ← use mean-based FDR
+      best_cct_fdr = best_cct_fdr[i],
+      logfc_cv = logfc_cv[i],
+      tiers = tiers,
+      consensus_direction = consensus_direction[i]
+    )
+  },
+  character(1)
+)
+
+# Compute RRA-method concordance metrics
+rra_method_concordance <- tibble(
+  scenario = c(
+    "rra_mean_tier_a_concordance",
+    "rra_mean_tier_ab_concordance",
+    "rra_mean_tier_abc_concordance"
+  ),
+  genes = c(
+    sum(tier == "Tier_A" & tier_mean == "Tier_A"),
+    sum(tier %in% c("Tier_A", "Tier_B") & tier_mean %in% c("Tier_A", "Tier_B")),
+    sum(tier %in% c("Tier_A", "Tier_B", "Tier_C") & tier_mean %in% c("Tier_A", "Tier_B", "Tier_C"))
+  )
 )
 
 membership_df <- tibble(gene_id_standard = universe, gene_name = consensus_df$gene_name)
@@ -720,6 +776,8 @@ consensus_df <- consensus_df %>%
     best_cct_p = best_cct_p,
     best_cct_fdr = best_cct_fdr,
     tier = tier,
+    tier_mean = tier_mean,
+    best_mean_rra_fdr = best_mean_rra_fdr,
     tier_blocker_a = tier_blocker_a,
     tier_blocker_b = tier_blocker_b,
     tier_blocker_c = tier_blocker_c
@@ -755,6 +813,8 @@ consensus_df <- consensus_df %>%
     "best_cct_p",
     "best_cct_fdr",
     "tier",
+    "tier_mean",
+    "best_mean_rra_fdr",
     "tier_blocker_a",
     "tier_blocker_b",
     "tier_blocker_c",
@@ -782,6 +842,30 @@ diagnostics_df <- consensus_df %>%
 
 sensitivity_df <- build_sensitivity_table(consensus_df, tiers)
 
+# Append RRA-method sensitivity (Borda mean vs RRA concordance)
+sensitivity_df <- rbind(
+  sensitivity_df,
+  data.frame(
+    scenario = c(
+      "rra_mean_tier_a_concordance",
+      "rra_mean_tier_b_concordance",
+      "rra_mean_tier_c_concordance"
+    ),
+    genes = c(
+      sum(tier == "Tier_A" & tier_mean == "Tier_A"),
+      sum(tier == "Tier_B" & tier_mean == "Tier_B"),
+      sum(tier == "Tier_C" & tier_mean == "Tier_C")
+    ),
+    stringsAsFactors = FALSE
+  )
+)
+
+# Note: Tier counts are reported as the number of genes retaining the SAME tier
+# under both RRA (standard) and mean-based aggregation. High concordance
+# indicates Tier assignments are robust to the choice of rank aggregation method.
+
+# Mean-based tier comparison for audit trail
+
 summary_df <- tibble(
   metric = c(
     "contrast",
@@ -798,7 +882,10 @@ summary_df <- tibble(
     "support2_tier_b_n",
     "tier_b_without_cv_n",
     "tier_b_without_cct_n",
-    "tier_b_without_rra_n"
+    "tier_b_without_rra_n",
+    "rra_mean_tier_a_concordance",
+    "rra_mean_tier_b_concordance",
+    "rra_mean_tier_c_concordance"
   ),
   value = c(
     contrast,
@@ -807,7 +894,7 @@ summary_df <- tibble(
     length(universe),
     fdr_threshold,
     lfc_threshold,
-    sum(consensus_df$tier == "Conflict"),
+    sum(consensus_df$consensus_direction == "mixed"),
     sum(consensus_df$tier == "Tier_A"),
     sum(consensus_df$tier == "Tier_B"),
     sum(consensus_df$tier == "Tier_C"),
@@ -815,7 +902,10 @@ summary_df <- tibble(
     sensitivity_df$genes[sensitivity_df$scenario == "tier_b_support2"],
     sensitivity_df$genes[sensitivity_df$scenario == "tier_b_without_cv"],
     sensitivity_df$genes[sensitivity_df$scenario == "tier_b_without_cct"],
-    sensitivity_df$genes[sensitivity_df$scenario == "tier_b_without_rra"]
+    sensitivity_df$genes[sensitivity_df$scenario == "tier_b_without_rra"],
+    sum(tier == "Tier_A" & tier_mean == "Tier_A"),
+    sum(tier == "Tier_B" & tier_mean == "Tier_B"),
+    sum(tier == "Tier_C" & tier_mean == "Tier_C")
   )
 )
 
@@ -825,7 +915,7 @@ write_tsv(diagnostics_df, output_diagnostics)
 write_tsv(membership_df, output_membership)
 write_tsv(sensitivity_df, output_sensitivity)
 plot_scatter(consensus_df, output_scatter, contrast)
-plot_consensus_volcano(consensus_df, output_volcano, contrast, p_clip)
+plot_consensus_volcano(consensus_df, output_volcano, contrast, p_clip, lfc_threshold)
 plot_significance_upset(membership_df, quantifiers, output_upset, contrast)
 
 cat("Consensus DEA completed successfully.\n")
