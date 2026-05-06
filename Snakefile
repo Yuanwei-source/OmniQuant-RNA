@@ -17,6 +17,7 @@ include: "workflow/rules/quantification_stringtie.smk"
 include: "workflow/rules/report.smk"
 include: "workflow/rules/differential_expression.smk"
 include: "workflow/rules/consensus_expression.smk"
+include: "workflow/rules/benchmark.smk"
 
 # All target outputs - comprehensive RNA-seq pipeline
 rule all:
