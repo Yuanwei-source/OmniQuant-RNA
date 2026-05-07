@@ -45,7 +45,7 @@ fastp:
 
 # Optional decontamination module
 decontam:
-  enabled: true
+  enabled: false
   mode: "conservative"
   pair_policy: "host_or_ercc_rescues_pair"
   prescreen:
