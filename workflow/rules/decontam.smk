@@ -385,9 +385,9 @@ rule decontam_classify_unresolved:
     resources:
         mem_mb=120000
     params:
-        nodes=lambda wildcards: get_kaiju_reference("nodes", "/mnt/nas/Database/kaiju_progenomes/nodes.dmp"),
-        names=lambda wildcards: get_kaiju_reference("names", "/mnt/nas/Database/kaiju_progenomes/names.dmp"),
-        db=lambda wildcards: get_kaiju_reference("db", "/tmp/kaiju_db_nr_euk.fmi")
+        nodes=lambda wildcards: get_kaiju_reference("nodes", "/home/dell/database/kaiju/nodes.dmp"),
+        names=lambda wildcards: get_kaiju_reference("names", "/home/dell/database/kaiju/names.dmp"),
+        db=lambda wildcards: get_kaiju_reference("db", "/home/dell/database/kaiju/kaiju_db_nr_euk.fmi")
     shell:
         """
         mkdir -p {DECONTAM_TMP_DIR} {DECONTAM_STATS_DIR} $(dirname {log}) benchmarks/decontam

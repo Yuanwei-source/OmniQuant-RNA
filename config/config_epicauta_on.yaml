@@ -50,14 +50,6 @@ dea_import:
   mapping_policy: conservative
   novel_policy: discovery_only
 decontam:
-  classifier:
-    confidence: 0.3
-    db: /mnt/nas/Database/k2_pluspfp_08_GB_20260226
-    memory_mapping: true
-    minimum_hit_groups: 3
-    name: k2
-    report_minimizer_data: true
-    threads: 32
   clues:
     priority_targets:
       environmental_bacteria: 2
@@ -71,7 +63,15 @@ decontam:
     extra: ''
     max_insert: 1000
   kaiju:
-    enabled: false
+    db: /home/dell/database/kaiju/kaiju_db_nr_euk.fmi
+    enabled: true
+    evalue: 0.01
+    min_score: 65
+    mismatches: 3
+    mode: greedy
+    names: /home/dell/database/kaiju/names.dmp
+    nodes: /home/dell/database/kaiju/nodes.dmp
+    threads: 32
   mode: conservative
   outputs:
     keep_audit_fastq: true

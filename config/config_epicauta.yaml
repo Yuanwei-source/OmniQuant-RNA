@@ -1,168 +1,147 @@
-
-# Configuration file for Epicauta impressicornis diapause transcriptome
-
-# Sample information file
-samples: "data/fastq/epicauta/samples.tsv"
-samples_path: "data/fastq/epicauta"
-read_length: 150 # average read length
-
-# Reference files
-reference:
-  genome: "data/reference/epicauta/genome.fasta"
-  annotation: "data/reference/epicauta/annotation.gff3"
-
-# Conda environments
+aligner: hisat2
 conda_env:
-  qc: "envs/qc.yaml"
-  decontam: "envs/decontam.yaml"
-  decontam_bowtie2: "envs/decontam_bowtie2.yaml"
-  decontam_kraken2: "envs/decontam_kraken2.yaml"
-  alignment: "envs/alignment.yaml"
-  quantification: "envs/quantification.yaml"
-  featurecounts: "envs/featurecounts.yaml"
-  stringtie: "envs/stringtie.yaml"
-  dea: "envs/dea.yaml"
-
-# Resource configuration
-medium:
-  t: 32
-  mem_mb: 256000
-
-# FastQC parameters
-fastqc:
-  memory: 8000
-
-# Fastp parameters for quality trimming
-fastp:
-  trim_front1: 0
-  trim_front2: 0
-  trim_tail1: 0
-  trim_tail2: 0
-  length_required: 35
-
-# Optional decontamination module
-decontam:
-  enabled: true
-  mode: "conservative"
-  pair_policy: "host_or_ercc_rescues_pair"
-  prescreen:
-    engine: "bowtie2"
-    max_insert: 1000
-    extra: ""
-  host_rescue:
-    engine: "bowtie2"
-    max_insert: 1000
-    extra: ""
-  references:
-    host_genome: "data/reference/epicauta/genome.fasta"
-    host_transcriptome: "data/reference/transcriptome.fasta"
-    ercc: "/mnt/nas/Database/decontam_references/ercc/ERCC92.fa"
-    technical_contam:
-      - "/mnt/nas/Database/decontam_references/technical/bootstrap_contam_seed.fa"
-
-  classifier:
-    name: "k2"
-    db: "/mnt/nas/Database/kraken2"
-    threads: 32
-    confidence: 0.3
-    minimum_hit_groups: 3
-    report_minimizer_data: true
-    memory_mapping: true
-  policy:
-    retain_unclassified: false
-    ecological_as_uncertain: true
-    nontarget_taxids: [9606, 4751, 33090, 4932]
-    uncertain_taxids: [2, 953, 6231, 6854, 6656, 10239]
-  clues:
-    top_taxa_n: 3
-    priority_targets:
-      wolbachia: 953
-      virus: 10239
-      fungi: 4751
-      environmental_bacteria: 2
-  outputs:
-    keep_audit_fastq: true
-
-# Alignment method selection
-aligner: "hisat2"
-
-# Hisat2 parameters
-hisat2:
-  library: "unstranded"
-
-# STAR parameters
-star:
-  sjdbOverhang: 149
-
-# Kallisto parameters
-kallisto:
-  bootstrap: 100
-  extra: ""
-
-# Salmon parameters
-salmon:
-  extra: "--validateMappings --gcBias --seqBias"
-
-# StringTie parameters
-stringtie:
-  extra: "-e -B"
-  merge_extra: "-c 0.5 -T 150"
-
-# featureCounts parameters
-featurecounts:
-  extra: "-p -B -C"
-  feature_type: "exon"
-  attribute: "auto"
-  transcript_attribute: "auto"
-  exon_attribute: "auto"
-  normalized_gtf: "data/reference/genome.featurecounts.gtf"
-  normalized_gtf_summary: "data/reference/genome.featurecounts.summary.tsv"
-
-# Unified reference namespace for tximport-based quantifiers
-namespace:
-  output_dir: "results/00.reference"
-  tx2gene_reference: "results/00.reference/tx2gene_reference.tsv"
-  stringtie_bridge: "results/00.reference/stringtie_tx2gene_bridge.tsv"
-  tx2gene_master: "results/00.reference/tx2gene_master.tsv"
-  gene_namespace: "results/00.reference/gene_namespace.tsv"
-  import_manifest_dir: "results/00.reference/import_manifests"
-
-dea_import:
-  main_only: true
-  mapping_policy: "conservative"
-  novel_policy: "discovery_only"
-
+  alignment: envs/alignment.yaml
+  dea: envs/dea.yaml
+  decontam: envs/decontam.yaml
+  decontam_bowtie2: envs/decontam_bowtie2.yaml
+  decontam_kraken2: envs/decontam_kraken2.yaml
+  featurecounts: envs/featurecounts.yaml
+  qc: envs/qc.yaml
+  quantification: envs/quantification.yaml
+  stringtie: envs/stringtie.yaml
 consensus:
+  contrasts: all
   enabled: true
-  quantifiers: ["featurecounts", "stringtie", "salmon", "kallisto"]
-  contrasts: "all"
   p_clip: 1.0e-16
+  quantifiers:
+  - featurecounts
+  - stringtie
+  - salmon
+  - kallisto
   tiers:
     tier_a:
-      min_support: 4
-      min_sign_consistency: 4
-      max_rra_fdr: 0.05
       max_cct_fdr: 0.05
       max_logfc_cv: 1.0
+      max_rra_fdr: 0.05
+      min_sign_consistency: 4
+      min_support: 4
     tier_b:
-      min_support: 3
-      min_sign_consistency: 3
-      max_rra_fdr: 0.10
-      max_cct_fdr: 0.10
+      max_cct_fdr: 0.1
       max_logfc_cv: 1.25
+      max_rra_fdr: 0.1
+      min_sign_consistency: 3
+      min_support: 3
     tier_c:
-      min_support: 2
-      min_sign_consistency: 2
-      max_rra_fdr: 0.25
       max_cct_fdr: 0.25
-      max_logfc_cv: 1.50
-
-# Differential Expression Analysis (DEA) parameters
+      max_logfc_cv: 1.5
+      max_rra_fdr: 0.25
+      min_sign_consistency: 2
+      min_support: 2
 dea:
-  comparisons: 
-    - "diapause_vs_non-diapause"
   batch_column: null
+  comparisons:
+  - diapause_vs_non-diapause
   fdr_threshold: 0.05
   lfc_threshold: 1.0
   min_count: 10
   min_methods: 1
+dea_import:
+  main_only: true
+  mapping_policy: conservative
+  novel_policy: discovery_only
+decontam:
+  clues:
+    priority_targets:
+      environmental_bacteria: 2
+      fungi: 4751
+      virus: 10239
+      wolbachia: 953
+    top_taxa_n: 3
+  enabled: true
+  host_rescue:
+    engine: bowtie2
+    extra: ''
+    max_insert: 1000
+  kaiju:
+    db: /home/dell/database/kaiju/kaiju_db_nr_euk.fmi
+    enabled: true
+    evalue: 0.01
+    min_score: 65
+    mismatches: 3
+    mode: greedy
+    names: /home/dell/database/kaiju/names.dmp
+    nodes: /home/dell/database/kaiju/nodes.dmp
+    threads: 32
+  mode: conservative
+  outputs:
+    keep_audit_fastq: true
+  pair_policy: host_or_ercc_rescues_pair
+  policy:
+    ecological_as_uncertain: true
+    nontarget_taxids:
+    - 9606
+    - 4751
+    - 33090
+    - 4932
+    retain_unclassified: false
+    uncertain_taxids:
+    - 2
+    - 953
+    - 6231
+    - 6854
+    - 6656
+    - 10239
+  prescreen:
+    engine: bowtie2
+    extra: ''
+    max_insert: 1000
+  references:
+    ercc: /mnt/nas/Database/decontam_references/ercc/ERCC92.fa
+    host_genome: data/reference/epicauta/genome.fasta
+    host_transcriptome: data/reference/transcriptome.fasta
+    technical_contam:
+    - /mnt/nas/Database/decontam_references/technical/bootstrap_contam_seed.fa
+fastp:
+  length_required: 35
+  trim_front1: 0
+  trim_front2: 0
+  trim_tail1: 0
+  trim_tail2: 0
+fastqc:
+  memory: 8000
+featurecounts:
+  attribute: auto
+  exon_attribute: auto
+  extra: -p -B -C
+  feature_type: exon
+  normalized_gtf: data/reference/genome.featurecounts.gtf
+  normalized_gtf_summary: data/reference/genome.featurecounts.summary.tsv
+  transcript_attribute: auto
+hisat2:
+  library: unstranded
+kallisto:
+  bootstrap: 100
+  extra: ''
+medium:
+  mem_mb: 256000
+  t: 32
+namespace:
+  gene_namespace: results/00.reference/gene_namespace.tsv
+  import_manifest_dir: results/00.reference/import_manifests
+  output_dir: results/00.reference
+  stringtie_bridge: results/00.reference/stringtie_tx2gene_bridge.tsv
+  tx2gene_master: results/00.reference/tx2gene_master.tsv
+  tx2gene_reference: results/00.reference/tx2gene_reference.tsv
+read_length: 150
+reference:
+  annotation: data/reference/epicauta/annotation.gff3
+  genome: data/reference/epicauta/genome.fasta
+salmon:
+  extra: --validateMappings --gcBias --seqBias
+samples: data/fastq/epicauta/samples.tsv
+samples_path: data/fastq/epicauta
+star:
+  sjdbOverhang: 149
+stringtie:
+  extra: -e -B
+  merge_extra: -c 0.5 -T 150
