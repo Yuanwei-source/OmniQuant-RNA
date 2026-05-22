@@ -24,6 +24,13 @@ def get_decontam_reference(key, default=""):
     return value
 
 
+def get_kaiju_reference(key, default=""):
+    value = DECONTAM_CONFIG.get("kaiju", {}).get(key, default)
+    if value in (None, "null"):
+        return ""
+    return value
+
+
 HOST_RESCUE_EXTRA = DECONTAM_CONFIG.get("host_rescue", {}).get("extra", "")
 HOST_RESCUE_MAX_INSERT = DECONTAM_CONFIG.get("host_rescue", {}).get("max_insert", 1000)
 PRESCREEN_EXTRA = DECONTAM_CONFIG.get("prescreen", {}).get("extra", "")
@@ -352,18 +359,19 @@ rule decontam_host_rescue:
 
 rule decontam_classify_unresolved:
     """
-    Collect classification-derived non-target and uncertain evidence.
-    v1 intentionally keeps this collector as a valid empty-contract placeholder while the Bowtie2 rescue path is being debugged.
+    Track 2 (microbe analysis): Classify unresolved reads with Kaiju against progenomes DB.
+    Replaces Kraken2+taxonkit. Outputs are for independent microbe visualization only —
+    do NOT feed back into Track 1 (host DEA). nontarget_ids and uncertain_ids are empty
+    placeholders for pair_decision contract compatibility.
     """
     input:
         r1=f"{DECONTAM_TMP_DIR}" + "/{sample}_R1_unresolved.fastq.gz",
-        r2=f"{DECONTAM_TMP_DIR}" + "/{sample}_R2_unresolved.fastq.gz",
-        technical_ids=f"{DECONTAM_TMP_DIR}" + "/{sample}.technical_ids.txt.gz",
-        host_ids=f"{DECONTAM_TMP_DIR}" + "/{sample}.host_ids.txt.gz",
-        ercc_ids=f"{DECONTAM_TMP_DIR}" + "/{sample}.ercc_ids.txt.gz"
+        r2=f"{DECONTAM_TMP_DIR}" + "/{sample}_R2_unresolved.fastq.gz"
     output:
-        kraken_output=f"{DECONTAM_TMP_DIR}" + "/{sample}.kraken.out",
-        report=f"{DECONTAM_TMP_DIR}" + "/{sample}.kraken.report.tsv",
+        kaiju_out=f"{DECONTAM_TMP_DIR}" + "/{sample}.kaiju.out",
+        kaiju_lineage=f"{DECONTAM_TMP_DIR}" + "/{sample}.kaiju.out.lineage",
+        krona_input=f"{DECONTAM_TMP_DIR}" + "/{sample}.krona_input.txt",
+        krona_html=f"{DECONTAM_TMP_DIR}" + "/{sample}.krona.html",
         nontarget_ids=f"{DECONTAM_TMP_DIR}" + "/{sample}.nontarget_ids.txt.gz",
         uncertain_ids=f"{DECONTAM_TMP_DIR}" + "/{sample}.uncertain_ids.txt.gz",
         stats=f"{DECONTAM_STATS_DIR}" + "/{sample}_classification_stats.tsv"
@@ -372,103 +380,60 @@ rule decontam_classify_unresolved:
     benchmark:
         "benchmarks/decontam/{sample}_classification.tsv"
     conda:
-        "../../envs/decontam_kraken2.yaml"
-    threads: CLASSIFIER_THREADS
+        "../../envs/kaiju.yaml"
+    threads: int(get_kaiju_reference("threads", "32"))
     resources:
-        mem_mb=8000
+        mem_mb=120000
     params:
-        db=CLASSIFIER_DB,
-        confidence=CLASSIFIER_CONFIG.get("confidence", 0.3),
-        minimum_hit_groups=CLASSIFIER_CONFIG.get("minimum_hit_groups", 3),
-        report_minimizer_data=CLASSIFIER_CONFIG.get("report_minimizer_data", True),
-        memory_mapping=CLASSIFIER_CONFIG.get("memory_mapping", True),
-        nontarget_taxids=",".join(map(str, DECONTAM_CONFIG.get("policy", {}).get("nontarget_taxids", []))),
-        uncertain_taxids=",".join(map(str, DECONTAM_CONFIG.get("policy", {}).get("uncertain_taxids", []))),
-        ecological_as_uncertain=DECONTAM_CONFIG.get("policy", {}).get("ecological_as_uncertain", True)
+        nodes=lambda wildcards: get_kaiju_reference("nodes", "/mnt/nas/Database/kaiju_progenomes/nodes.dmp"),
+        names=lambda wildcards: get_kaiju_reference("names", "/mnt/nas/Database/kaiju_progenomes/names.dmp"),
+        db=lambda wildcards: get_kaiju_reference("db", "/tmp/kaiju_db_nr_euk.fmi")
     shell:
         """
         mkdir -p {DECONTAM_TMP_DIR} {DECONTAM_STATS_DIR} $(dirname {log}) benchmarks/decontam
-        tmpdir=$(mktemp -d {DECONTAM_TMP_DIR}/{wildcards.sample}.classify.XXXXXX)
-        trap 'rm -rf "$tmpdir"' EXIT
 
-        if [ -n "{params.db}" ] && [ -f "{params.db}/hash.k2d" ] && [ -f "{params.db}/opts.k2d" ] && [ -f "{params.db}/taxo.k2d" ]; then
-            extra_args=""
-            if [ "{params.memory_mapping}" = "True" ]; then
-                extra_args="$extra_args --memory-mapping"
-            fi
-            if [ "{params.report_minimizer_data}" = "True" ]; then
-                extra_args="$extra_args --report-minimizer-data"
-            fi
+        if [ -n "{params.db}" ] && [ -f "{params.db}" ]; then
+            kaiju -t {params.nodes} \\
+                  -f {params.db} \\
+                  -i {input.r1} -j {input.r2} \\
+                  -o {output.kaiju_out} \\
+                  -z {threads} \\
+                  -a greedy -e 3 -s 65 -E 0.01 -v >> {log} 2>&1
 
-            k2 classify \
-                --db {params.db} \
-                --paired \
-                --minimum-base-quality 20 \
-                --use-names \
-                --output {output.kraken_output} \
-                --report {output.report} \
-                --confidence {params.confidence} \
-                --minimum-hit-groups {params.minimum_hit_groups} \
-                --threads {threads} \
-                $extra_args \
-                {input.r1} {input.r2} >> {log} 2>&1
+            kaiju-addTaxonNames -t {params.nodes} \\
+                                -n {params.names} \\
+                                -i {output.kaiju_out} \\
+                                -o {output.kaiju_lineage} \\
+                                -r superkingdom,phylum,class,order,family,genus,species -p >> {log} 2>&1
+
+            kaiju2krona -t {params.nodes} \\
+                        -n {params.names} \\
+                        -i {output.kaiju_out} \\
+                        -o {output.krona_input} >> {log} 2>&1
+            ktImportText {output.krona_input} -o {output.krona_html} >> {log} 2>&1
+
+            classified_reads=$(awk '$1=="C" {{c++}} END {{print c+0}}' {output.kaiju_out})
+            unclassified_reads=$(awk '$1=="U" {{u++}} END {{print u+0}}' {output.kaiju_out})
+            classified_pairs=$((classified_reads / 2))
+            unclassified_pairs=$((unclassified_reads / 2))
         else
-            : > {output.kraken_output}
-            : > {output.report}
+            : > {output.kaiju_out}
+            : > {output.kaiju_lineage}
+            : > {output.krona_input}
+            : > {output.krona_html}
+            classified_pairs=0
+            unclassified_pairs=0
         fi
 
-        # Not using python script anymore. Use taxonkit + awk natively.
-        
-        NONTARGET="{params.nontarget_taxids}"
-        UNCERTAIN="{params.uncertain_taxids}"
-        
-        if [ -n "$NONTARGET" ] && [ -n "{params.db}" ]; then
-            taxonkit list --data-dir {params.db}/taxonomy --ids "$NONTARGET" > "$tmpdir/nontarget.taxids" 2>/dev/null || touch "$tmpdir/nontarget.taxids"
-        else
-            touch "$tmpdir/nontarget.taxids"
-        fi
-        
-        if [ -n "$UNCERTAIN" ] && [ -n "{params.db}" ]; then
-            taxonkit list --data-dir {params.db}/taxonomy --ids "$UNCERTAIN" > "$tmpdir/uncertain.taxids" 2>/dev/null || touch "$tmpdir/uncertain.taxids"
-        else
-            touch "$tmpdir/uncertain.taxids"
-        fi
+        echo -e "sample\\tstage\\tclassified_pairs\\tunclassified_pairs\\tnontarget_pairs\\tuncertain_pairs" > {output.stats}
+        echo -e "{wildcards.sample}\\tclassification\\t${{classified_pairs}}\\t${{unclassified_pairs}}\\t0\\t0" >> {output.stats}
 
-        # Process standard kraken output and categorize IDs directly
-        awk -v nontarget_out="$tmpdir/nontarget_ids.txt" -v uncertain_out="$tmpdir/uncertain_ids.txt" '
-            BEGIN {{FS="\\t"; OFS="\\t"}}
-            FILENAME == ARGV[1] {{ n[$1]; next }}
-            FILENAME == ARGV[2] {{ u[$1]; next }}
-            {{
-                status=$1; qname=$2; taxid=$3
-                
-                # strip kraken suffix if present (/1 or /2)
-                sub(/\\/[12]$/, "", qname)
-                
-                id_type = ""
-                if (status == "C") {{
-                    class_count++
-                    if (taxid in n) {{
-                        print qname > nontarget_out
-                        n_count++
-                    }} else if (taxid in u && "{params.ecological_as_uncertain}" == "True") {{
-                        print qname > uncertain_out
-                        u_count++
-                    }}
-                }} else {{
-                    unclass_count++
-                }}
-            }}
-            END {{
-                print "sample\\tstage\\tclassified_pairs\\tunclassified_pairs\\tnontarget_pairs\\tuncertain_pairs" > "{output.stats}"
-                printf "%s\\tclassification\\t%d\\t%d\\t%d\\t%d\\n", "{wildcards.sample}", class_count+0, unclass_count+0, n_count+0, u_count+0 > "{output.stats}"
-            }}
-        ' "$tmpdir/nontarget.taxids" "$tmpdir/uncertain.taxids" {output.kraken_output}
-        
-        [ -f "$tmpdir/nontarget_ids.txt" ] && sort -u "$tmpdir/nontarget_ids.txt" | gzip -c > {output.nontarget_ids} || echo "# read_id" | gzip -c > {output.nontarget_ids}
-        [ -f "$tmpdir/uncertain_ids.txt" ] && sort -u "$tmpdir/uncertain_ids.txt" | gzip -c > {output.uncertain_ids} || echo "# read_id" | gzip -c > {output.uncertain_ids}
+        # Empty placeholders for pair_decision contract compatibility.
+        # Track 2 does not feed back into Track 1.
+        echo "# read_id" | gzip -c > {output.nontarget_ids}
+        echo "# read_id" | gzip -c > {output.uncertain_ids}
 
-        printf "[decontam_classify_unresolved] collected k2 classification evidence for %s\n" {wildcards.sample} >> {log}
+        printf "[decontam_classify_unresolved] completed Kaiju classification for %s\\n" {wildcards.sample} >> {log}
         """
 
 
@@ -603,7 +568,7 @@ rule decontam_microbe_clues_tables:
         sample_file=config["samples"],
         decision_summaries=expand(f"{DECONTAM_STATS_DIR}" + "/{sample}_decision_summary.tsv", sample=SAMPLES),
         classification_stats=expand(f"{DECONTAM_STATS_DIR}" + "/{sample}_classification_stats.tsv", sample=SAMPLES),
-        reports=expand(f"{DECONTAM_TMP_DIR}" + "/{sample}.kraken.report.tsv", sample=SAMPLES)
+        kaiju_lineages=expand(f"{DECONTAM_TMP_DIR}" + "/{sample}.kaiju.out.lineage", sample=SAMPLES)
     output:
         burden=f"{DECONTAM_CLUES_TABLE_DIR}/sample_microbial_burden.tsv",
         targets=f"{DECONTAM_CLUES_TABLE_DIR}/priority_targets.tsv",
@@ -612,8 +577,101 @@ rule decontam_microbe_clues_tables:
         "../../envs/decontam.yaml"
     log:
         "logs/decontam/microbe_clues_tables.log"
-    script:
-        "../scripts/summarize_microbe_clues.py"
+    shell:
+        """
+        mkdir -p {DECONTAM_CLUES_TABLE_DIR} {DECONTAM_CLUES_INTERMEDIATE_DIR} $(dirname {log})
+
+        # 构建 sample → group 映射表 (samples.tsv 第4列是 group)
+        tmpdir=$(mktemp -d {DECONTAM_TMP_DIR}/.clues_tables.XXXXXX)
+        trap 'rm -rf "$tmpdir"' EXIT
+        awk 'NR>1 {{print $1"\\t"$4}}' {input.sample_file} > "$tmpdir/groups.tsv"
+
+        # 写入三个输出文件的表头
+        printf "sample\\tgroup\\ttotal_reads\\tclassified_reads\\tunclassified_reads\\tbacteria_reads\\tfungi_reads\\tvirus_reads\\tnon_host_fraction\\n" > {output.burden}
+        printf "sample\\tgroup\\twolbachia_reads\\twolbachia_presence\\tvirus_reads\\tvirus_presence\\tfungi_reads\\tfungi_presence\\n" > {output.targets}
+        printf "sample\\tgroup\\tcategory\\tpairs\\tfraction_total\\tfraction_non_host\\n" > {output.composition}
+
+        # 逐个样本处理 Kaiju lineage 文件
+        for linefile in {input.kaiju_lineages}; do
+            sample=$(basename "$linefile" .kaiju.out.lineage)
+            group=$(awk -v s="$sample" '$1==s {{print $2; exit}}' "$tmpdir/groups.tsv")
+            [ -z "$group" ] && group="unknown"
+
+            # 从 decision summary 获取 total_pairs 用于计算 non_host_fraction
+            summary="{DECONTAM_STATS_DIR}/${{sample}}_decision_summary.tsv"
+            if [ -f "$summary" ]; then
+                rescued_host=$(awk 'NR==2 {{print $2+0}}' "$summary")
+                rescued_ercc=$(awk 'NR==2 {{print $3+0}}' "$summary")
+                flagged_uncertain=$(awk 'NR==2 {{print $4+0}}' "$summary")
+                removed_tech=$(awk 'NR==2 {{print $5+0}}' "$summary")
+                removed_nontarget=$(awk 'NR==2 {{print $6+0}}' "$summary")
+                total_pairs=$((rescued_host + rescued_ercc + flagged_uncertain + removed_tech + removed_nontarget))
+                non_host_pairs=$((total_pairs - rescued_host - rescued_ercc))
+                if [ "$total_pairs" -gt 0 ]; then
+                    non_host_fraction=$(awk "BEGIN {{printf \"%.6f\", $non_host_pairs/$total_pairs}}")
+                else
+                    non_host_fraction="0.000000"
+                fi
+            else
+                non_host_fraction="0.000000"
+            fi
+
+            # 从 Kaiju lineage 文件统计各类 reads（单次 awk 遍历，高效）
+            if [ -f "$linefile" ] && [ -s "$linefile" ]; then
+                read total_reads classified unclassified bacteria fungi virus wolbachia <<< $(awk '
+                    /^C/ {{ classified++ }}
+                    /^U/ {{ unclassified++ }}
+                    /^C/ && /Bacteria;/ {{ bacteria++ }}
+                    /^C/ && /Fungi;/    {{ fungi++ }}
+                    /^C/ && /Viruses;/  {{ virus++ }}
+                    tolower($0) ~ /wolbachia/ {{ wolbachia++ }}
+                    END {{
+                        printf "%d %d %d %d %d %d %d\\n", NR, classified+0, unclassified+0, bacteria+0, fungi+0, virus+0, wolbachia+0
+                    }}
+                ' "$linefile")
+            else
+                total_reads=0; classified=0; unclassified=0
+                bacteria=0; fungi=0; virus=0; wolbachia=0
+            fi
+
+            # 写入 burden 行
+            printf "%s\\t%s\\t%d\\t%d\\t%d\\t%d\\t%d\\t%d\\t%s\\n" \
+                "$sample" "$group" $total_reads $classified $unclassified \
+                $bacteria $fungi $virus "$non_host_fraction" >> {output.burden}
+
+            # 写入 targets 行
+            w_presence=$([ "$wolbachia" -gt 0 ] && echo "yes" || echo "no")
+            v_presence=$([ "$virus" -gt 0 ] && echo "yes" || echo "no")
+            f_presence=$([ "$fungi" -gt 0 ] && echo "yes" || echo "no")
+            printf "%s\\t%s\\t%d\\t%s\\t%d\\t%s\\t%d\\t%s\\n" \
+                "$sample" "$group" $wolbachia "$w_presence" $virus "$v_presence" \
+                $fungi "$f_presence" >> {output.targets}
+
+            # 写入 composition 行（6个分类）
+            other_class=$((classified - bacteria - fungi - virus))
+            [ $other_class -lt 0 ] && other_class=0
+
+            for row in "Technical:0" "Bacteria:$bacteria" "Fungi:$fungi" "Viruses:$virus" "Other_Classified:$other_class" "Unclassified:$unclassified"; do
+                cat=$(echo "$row" | cut -d: -f1)
+                cnt=$(echo "$row" | cut -d: -f2)
+                if [ "$total_reads" -gt 0 ]; then
+                    ft=$(awk "BEGIN {{printf \"%.6f\", $cnt/$total_reads}}")
+                else
+                    ft="0.000000"
+                fi
+                if [ "$classified" -gt 0 ]; then
+                    fnh=$(awk "BEGIN {{printf \"%.6f\", $cnt/$classified}}")
+                else
+                    fnh="0.000000"
+                fi
+                printf "%s\\t%s\\t%s\\t%d\\t%s\\t%s\\n" \
+                    "$sample" "$group" "$cat" $cnt "$ft" "$fnh" >> {output.composition}
+            done
+        done
+
+        n_samples=$(wc -l < {output.burden})
+        printf "[decontam_microbe_clues_tables] 已生成 %d 个样本的微生物线索表\\n" "$((n_samples - 1))" > {log}
+        """
 
 
 rule decontam_microbe_composition_plot:

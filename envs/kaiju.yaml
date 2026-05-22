@@ -1,0 +1,9 @@
+name: kaiju
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - kaiju>=1.9
+  - krona>=2.8
+  - seqtk>=1.4
+  - seqkit>=2.5

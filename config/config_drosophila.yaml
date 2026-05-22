@@ -1,0 +1,179 @@
+
+
+# Configuration file for RNA-seq transcriptome quantification workflow
+
+# Sample information file
+samples: "data/fastq/wolbachia/samples.tsv"
+samples_path: "data/fastq/wolbachia"
+read_length: 150 # average read length
+
+# Reference files
+reference:
+  # Path to reference genome FASTA file
+  genome: "data/reference/Drosophila_melanogaster.BDGP6.54.dna.toplevel.fa"
+  # Path to annotation file, supports .gff3, .gff, and .gtf
+  annotation: "data/reference/Drosophila_melanogaster.BDGP6.54.115.chr.gff3"
+
+# Conda environments
+conda_env:
+  qc: "envs/qc.yaml"
+  decontam: "envs/decontam.yaml"
+  decontam_bowtie2: "envs/decontam_bowtie2.yaml"
+  decontam_kraken2: "envs/decontam_kraken2.yaml"
+  alignment: "envs/alignment.yaml"
+  quantification: "envs/quantification.yaml"
+  featurecounts: "envs/featurecounts.yaml"
+  stringtie: "envs/stringtie.yaml"
+  dea: "envs/dea.yaml"
+
+# Resource configuration
+medium:
+  t: 32  # threads
+  mem_mb: 256000  # memory in MB
+
+# FastQC parameters
+fastqc:
+  memory: 8000  # memory in MB
+
+# Fastp parameters for quality trimming
+fastp:
+  trim_front1: 0
+  trim_front2: 0
+  trim_tail1: 0
+  trim_tail2: 0
+  length_required: 35  # minimum read length
+
+# Optional decontamination module
+decontam:
+  enabled: true
+  mode: "conservative"
+  pair_policy: "host_or_ercc_rescues_pair"
+  prescreen:
+    engine: "bowtie2"
+    max_insert: 1000
+    extra: ""
+  host_rescue:
+    engine: "bowtie2"
+    max_insert: 1000
+    extra: ""
+  references:
+    host_genome: "data/reference/Drosophila_melanogaster.BDGP6.54.dna.toplevel.fa"
+    host_transcriptome: "data/reference/transcriptome.fasta"
+    ercc: "/mnt/nas/Database/decontam_references/ercc/ERCC92.fa"
+    technical_contam:
+      - "/mnt/nas/Database/decontam_references/technical/bootstrap_contam_seed.fa"
+
+  classifier:
+    name: "k2"
+    db: "/mnt/nas/Database/k2_pluspfp_08_GB_20260226"
+    threads: 32
+    confidence: 0.3
+    minimum_hit_groups: 3
+    report_minimizer_data: true
+    memory_mapping: true
+  policy:
+    retain_unclassified: false
+    ecological_as_uncertain: true
+    nontarget_taxids: [9606, 4751, 33090, 4932]
+    uncertain_taxids: [2, 953, 6231, 6854, 6656, 10239]
+  clues:
+    top_taxa_n: 3
+    priority_targets:
+      wolbachia: 953
+      virus: 10239
+      fungi: 4751
+      environmental_bacteria: 2
+  outputs:
+    keep_audit_fastq: true
+
+# Alignment method selection
+aligner: "hisat2"  # Choose "hisat2" or "star"
+
+# Hisat2 parameters
+hisat2:
+  library: "unstranded"  # library type, can be "FR", "RF", or "unstranded", default is "unstranded"
+
+# STAR parameters
+star:
+  sjdbOverhang: 149  # read length - 1
+
+# Kallisto parameters
+kallisto:
+  bootstrap: 100
+  extra: "" # removed --bias to avoid segfault
+
+# Salmon parameters (optional)
+salmon:
+  extra: "--validateMappings --gcBias --seqBias"
+
+# STAR parameters (optional)
+star:
+  sjdbOverhang: 149
+
+# StringTie parameters
+stringtie:
+  extra: "-e -B"  # -e: only estimate abundances of given reference transcripts; -B: enable output for Ballgown
+  merge_extra: "-c 0.5 -T 150"  # -c: minimum input transcript coverage; -T: minimum input transcript TPM
+
+# featureCounts parameters
+featurecounts:
+  extra: "-p -B -C"  # -p: paired-end; -B: count multi-mapping reads; -C: do not count reads overlapping with more than one feature
+  feature_type: "exon"  # feature type to count (exon, transcript, gene, etc.)
+  attribute: "auto"  # gene-level feature ID; use auto to detect gene_id/gene_name/Parent
+  transcript_attribute: "auto"  # transcript-level feature ID; use auto to detect transcript_id/ID/Parent
+  exon_attribute: "auto"  # exon-level feature ID; use auto to detect exon_id/ID/Parent/gene_id/transcript_id
+  normalized_gtf: "data/reference/genome.featurecounts.gtf"  # auto-generated featureCounts-compatible annotation
+  normalized_gtf_summary: "data/reference/genome.featurecounts.summary.tsv"  # normalization summary report
+
+# Unified reference namespace for tximport-based quantifiers
+namespace:
+  output_dir: "results/00.reference"
+  tx2gene_reference: "results/00.reference/tx2gene_reference.tsv"
+  stringtie_bridge: "results/00.reference/stringtie_tx2gene_bridge.tsv"
+  tx2gene_master: "results/00.reference/tx2gene_master.tsv"
+  gene_namespace: "results/00.reference/gene_namespace.tsv"
+  import_manifest_dir: "results/00.reference/import_manifests"
+
+dea_import:
+  main_only: true
+  mapping_policy: "conservative"
+  novel_policy: "discovery_only"
+
+consensus:
+  enabled: true
+  quantifiers: ["featurecounts", "stringtie", "salmon", "kallisto"]
+  contrasts: "all"
+  p_clip: 1.0e-16
+  tiers:
+    tier_a:
+      min_support: 4
+      min_sign_consistency: 4
+      max_rra_fdr: 0.05
+      max_cct_fdr: 0.05
+      max_logfc_cv: 1.0
+    tier_b:
+      min_support: 3
+      min_sign_consistency: 3
+      max_rra_fdr: 0.10
+      max_cct_fdr: 0.10
+      max_logfc_cv: 1.25
+    tier_c:
+      min_support: 2
+      min_sign_consistency: 2
+      max_rra_fdr: 0.25
+      max_cct_fdr: 0.25
+      max_logfc_cv: 1.50
+
+
+# Differential Expression Analysis (DEA) parameters
+dea:
+  comparisons: 
+    - "Wolbachia_infected_vs_Wolbachia_free"
+  #  - "30d_vs_1d"
+  #  - "60d_vs_30d"  # 随意数量的配对，约定 "_" 右侧的组为对照组（分母），左侧的组为处理组（分子）
+  batch_column: null  # 如有批次效应，指定列名
+  fdr_threshold: 0.05
+  lfc_threshold: 1.0
+  min_count: 10
+  # For integrated filtering across DEA result tables
+  min_methods: 1 # retain genes found by at least this many DEA result tables

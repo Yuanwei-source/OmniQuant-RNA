@@ -45,3 +45,8 @@ Thumbs.db
 
 # Conda 环境
 *.conda/
+results.backup.*
+config/*.bak
+session-ses_*.md
+.sisyphus/evidence/
+.sisyphus/notepads/
