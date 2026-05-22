@@ -1,0 +1,147 @@
+aligner: hisat2
+conda_env:
+  alignment: envs/alignment.yaml
+  dea: envs/dea.yaml
+  decontam: envs/decontam.yaml
+  decontam_bowtie2: envs/decontam_bowtie2.yaml
+  decontam_kraken2: envs/decontam_kraken2.yaml
+  featurecounts: envs/featurecounts.yaml
+  qc: envs/qc.yaml
+  quantification: envs/quantification.yaml
+  stringtie: envs/stringtie.yaml
+consensus:
+  contrasts: all
+  enabled: true
+  p_clip: 1.0e-16
+  quantifiers:
+  - featurecounts
+  - stringtie
+  - salmon
+  - kallisto
+  tiers:
+    tier_a:
+      max_cct_fdr: 0.05
+      max_logfc_cv: 1.0
+      max_rra_fdr: 0.05
+      min_sign_consistency: 4
+      min_support: 4
+    tier_b:
+      max_cct_fdr: 0.1
+      max_logfc_cv: 1.25
+      max_rra_fdr: 0.1
+      min_sign_consistency: 3
+      min_support: 3
+    tier_c:
+      max_cct_fdr: 0.25
+      max_logfc_cv: 1.5
+      max_rra_fdr: 0.25
+      min_sign_consistency: 2
+      min_support: 2
+dea:
+  batch_column: null
+  comparisons:
+  - Wolbachia_infected_vs_Wolbachia_free
+  fdr_threshold: 0.05
+  lfc_threshold: 1.0
+  min_count: 10
+  min_methods: 1
+dea_import:
+  main_only: true
+  mapping_policy: conservative
+  novel_policy: discovery_only
+decontam:
+  clues:
+    priority_targets:
+      environmental_bacteria: 2
+      fungi: 4751
+      virus: 10239
+      wolbachia: 953
+    top_taxa_n: 3
+  enabled: true
+  host_rescue:
+    engine: bowtie2
+    extra: ''
+    max_insert: 1000
+  kaiju:
+    db: /home/dell/database/kaiju/kaiju_db_nr_euk.fmi
+    enabled: true
+    evalue: 0.01
+    min_score: 65
+    mismatches: 3
+    mode: greedy
+    names: /home/dell/database/kaiju/names.dmp
+    nodes: /home/dell/database/kaiju/nodes.dmp
+    threads: 32
+  mode: conservative
+  outputs:
+    keep_audit_fastq: true
+  pair_policy: host_or_ercc_rescues_pair
+  policy:
+    ecological_as_uncertain: true
+    nontarget_taxids:
+    - 9606
+    - 4751
+    - 33090
+    - 4932
+    retain_unclassified: false
+    uncertain_taxids:
+    - 2
+    - 953
+    - 6231
+    - 6854
+    - 6656
+    - 10239
+  prescreen:
+    engine: bowtie2
+    extra: ''
+    max_insert: 1000
+  references:
+    ercc: /mnt/nas/Database/decontam_references/ercc/ERCC92.fa
+    host_genome: data/reference/Drosophila_melanogaster.BDGP6.54.dna.toplevel.fa
+    host_transcriptome: data/reference/transcriptome.fasta
+    technical_contam:
+    - /mnt/nas/Database/decontam_references/technical/bootstrap_contam_seed.fa
+fastp:
+  length_required: 35
+  trim_front1: 0
+  trim_front2: 0
+  trim_tail1: 0
+  trim_tail2: 0
+fastqc:
+  memory: 8000
+featurecounts:
+  attribute: auto
+  exon_attribute: auto
+  extra: -p -B -C
+  feature_type: exon
+  normalized_gtf: data/reference/genome.featurecounts.gtf
+  normalized_gtf_summary: data/reference/genome.featurecounts.summary.tsv
+  transcript_attribute: auto
+hisat2:
+  library: unstranded
+kallisto:
+  bootstrap: 100
+  extra: ''
+medium:
+  mem_mb: 256000
+  t: 32
+namespace:
+  gene_namespace: results/00.reference/gene_namespace.tsv
+  import_manifest_dir: results/00.reference/import_manifests
+  output_dir: results/00.reference
+  stringtie_bridge: results/00.reference/stringtie_tx2gene_bridge.tsv
+  tx2gene_master: results/00.reference/tx2gene_master.tsv
+  tx2gene_reference: results/00.reference/tx2gene_reference.tsv
+read_length: 150
+reference:
+  annotation: data/reference/Drosophila_melanogaster.BDGP6.54.115.chr.gff3
+  genome: data/reference/Drosophila_melanogaster.BDGP6.54.dna.toplevel.fa
+salmon:
+  extra: --validateMappings --gcBias --seqBias
+samples: data/fastq/wolbachia/samples.tsv
+samples_path: data/fastq/wolbachia
+star:
+  sjdbOverhang: 149
+stringtie:
+  extra: -e -B
+  merge_extra: -c 0.5 -T 150
