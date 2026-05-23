@@ -391,11 +391,18 @@ rule decontam_classify_unresolved:
     shell:
         """
         mkdir -p {DECONTAM_TMP_DIR} {DECONTAM_STATS_DIR} $(dirname {log}) benchmarks/decontam
+        tmpdir=$(mktemp -d {DECONTAM_TMP_DIR}/{wildcards.sample}.classify.XXXXXX)
+        trap 'rm -rf "$tmpdir"' EXIT
 
         if [ -n "{params.db}" ] && [ -f "{params.db}" ]; then
+            # Repair paired-end read order (seqkit grep may shuffle reads)
+            mkdir -p "$tmpdir/pair"
+            seqkit pair -1 {input.r1} -2 {input.r2} -O "$tmpdir/pair" 2>> {log}
+            
             kaiju -t {params.nodes} \\
                   -f {params.db} \\
-                  -i {input.r1} \\
+                  -i "$tmpdir/pair/{wildcards.sample}_R1_unresolved.fastq.gz" \\
+                  -j "$tmpdir/pair/{wildcards.sample}_R2_unresolved.fastq.gz" \\
                   -o {output.kaiju_out} \\
                   -z {threads} \\
                   -a greedy -e 3 -s 65 -E 0.01 -v >> {log} 2>&1
@@ -414,8 +421,8 @@ rule decontam_classify_unresolved:
 
             classified_reads=$(awk '$1=="C" {{c++}} END {{print c+0}}' {output.kaiju_out})
             unclassified_reads=$(awk '$1=="U" {{u++}} END {{print u+0}}' {output.kaiju_out})
-            classified_pairs=$((classified_reads))
-            unclassified_pairs=$((unclassified_reads))
+            classified_pairs=$((classified_reads / 2))
+            unclassified_pairs=$((unclassified_reads / 2))
         else
             : > {output.kaiju_out}
             : > {output.kaiju_lineage}
