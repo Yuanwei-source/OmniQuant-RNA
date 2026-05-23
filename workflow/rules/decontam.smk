@@ -395,7 +395,7 @@ rule decontam_classify_unresolved:
         if [ -n "{params.db}" ] && [ -f "{params.db}" ]; then
             kaiju -t {params.nodes} \\
                   -f {params.db} \\
-                  -i {input.r1} -j {input.r2} \\
+                  -i {input.r1} \\
                   -o {output.kaiju_out} \\
                   -z {threads} \\
                   -a greedy -e 3 -s 65 -E 0.01 -v >> {log} 2>&1
@@ -414,8 +414,8 @@ rule decontam_classify_unresolved:
 
             classified_reads=$(awk '$1=="C" {{c++}} END {{print c+0}}' {output.kaiju_out})
             unclassified_reads=$(awk '$1=="U" {{u++}} END {{print u+0}}' {output.kaiju_out})
-            classified_pairs=$((classified_reads / 2))
-            unclassified_pairs=$((unclassified_reads / 2))
+            classified_pairs=$((classified_reads))
+            unclassified_pairs=$((unclassified_reads))
         else
             : > {output.kaiju_out}
             : > {output.kaiju_lineage}
