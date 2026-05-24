@@ -50,3 +50,8 @@ config/*.bak
 session-ses_*.md
 .sisyphus/evidence/
 .sisyphus/notepads/
+benchmark_results/
+results/
+logs/
+data/fastq/
+data/reference/
