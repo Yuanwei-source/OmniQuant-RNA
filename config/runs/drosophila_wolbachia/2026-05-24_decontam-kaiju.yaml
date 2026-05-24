@@ -97,8 +97,6 @@ decontam:
     max_insert: 1000
   references:
     ercc: /mnt/nas/Database/decontam_references/ercc/ERCC92.fa
-    host_genome: data/reference/Drosophila_melanogaster.BDGP6.54.dna.toplevel.fa
-    host_transcriptome: data/reference/transcriptome.fasta
     technical_contam:
     - /mnt/nas/Database/decontam_references/technical/bootstrap_contam_seed.fa
 fastp:
@@ -114,8 +112,6 @@ featurecounts:
   exon_attribute: auto
   extra: -p -B -C
   feature_type: exon
-  normalized_gtf: data/reference/genome.featurecounts.gtf
-  normalized_gtf_summary: data/reference/genome.featurecounts.summary.tsv
   transcript_attribute: auto
 hisat2:
   library: unstranded
@@ -134,12 +130,11 @@ namespace:
   tx2gene_reference: results/00.reference/tx2gene_reference.tsv
 read_length: 150
 reference:
-  annotation: data/reference/Drosophila_melanogaster.BDGP6.54.115.chr.gff3
-  genome: data/reference/Drosophila_melanogaster.BDGP6.54.dna.toplevel.fa
+  species: drosophila_melanogaster
 salmon:
   extra: --validateMappings --gcBias --seqBias
-samples: data/fastq/wolbachia/samples.tsv
-samples_path: data/fastq/wolbachia
+samples: data/fastq/drosophila_wolbachia/samples.tsv
+samples_path: data/fastq/drosophila_wolbachia
 star:
   sjdbOverhang: 149
 stringtie:

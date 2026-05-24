@@ -27,12 +27,12 @@ include: "../rules/annotation_conversion.smk"
 rule all:
     input:
         # Annotation format conversion completion flag
-        "data/reference/annotation_conversion_complete.flag"
+        f"{REFERENCE_DIR}/annotation_conversion_complete.flag"
 
 # Rule to run only annotation conversion
 rule conversion_only:
     input:
-        "data/reference/annotation_conversion_complete.flag"
+        f"{REFERENCE_DIR}/annotation_conversion_complete.flag"
     output:
         "results/annotation_conversion_summary.txt"
     shell:

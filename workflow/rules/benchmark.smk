@@ -4,7 +4,7 @@
 import os
 
 # Local path constants — available in common.smk but referenced here for standalone use
-BENCH_REFERENCE_DIR = "data/reference"
+BENCH_REFERENCE_DIR = REFERENCE_DIR
 
 # ── Rule: subsampling stability benchmark ──────────────────────────────────────
 rule benchmark_subsampling:

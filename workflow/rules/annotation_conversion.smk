@@ -6,7 +6,7 @@ rule annotation_format_conversion:
         original=REFERENCE_SOURCE_ANNOTATION
     output:
         generated=(REFERENCE_GTF if REFERENCE_SOURCE_FORMAT == "gff3" else REFERENCE_GFF3),
-        converted = "data/reference/annotation_conversion_complete.flag"
+        converted = f"{REFERENCE_DIR}/annotation_conversion_complete.flag"
     run:
         input_format = detect_annotation_format(input.original)
 
@@ -29,7 +29,7 @@ rule extract_transcriptome:
     input:
         genome=REFERENCE_GENOME,
         gtf=REFERENCE_GTF,
-        conversion_flag="data/reference/annotation_conversion_complete.flag"
+        conversion_flag=f"{REFERENCE_DIR}/annotation_conversion_complete.flag"
     output:
         transcriptome=REFERENCE_TRANSCRIPTOME
     conda:

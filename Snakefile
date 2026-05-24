@@ -32,7 +32,7 @@ rule all:
         STRINGTIE_MANIFEST,
 
         # Annotation format conversion
-        "data/reference/annotation_conversion_complete.flag",
+        f"{REFERENCE_DIR}/annotation_conversion_complete.flag",
         
         # Transcriptome extraction
         REFERENCE_TRANSCRIPTOME,
@@ -53,9 +53,9 @@ rule all:
         get_decontam_clues_targets(SAMPLES),
         
         # Reference indices
-        "data/reference/kallisto_index/transcriptome.idx",
-        "data/reference/salmon_index",
-        "data/reference/hisat2_index",
+        f"{KALLISTO_INDEX_DIR}/transcriptome.idx",
+        SALMON_INDEX_DIR,
+        HISAT2_INDEX_DIR,
         
         # Alignment results
         expand("results/04.alignment/{sample}.bam", sample=SAMPLES),
@@ -76,8 +76,8 @@ rule all:
         "results/05.quantification/matrices/salmon/salmon_gene_tpm_matrix.tsv",
         
         # featureCounts quantification
-        "data/reference/genome.featurecounts.gtf",
-        "data/reference/genome.featurecounts.summary.tsv",
+        FEATURECOUNTS_GTF,
+        f"{REFERENCE_DIR}/genome.featurecounts.summary.tsv",
         expand("results/05.quantification/native/featurecounts/per_sample/{sample}/counts.txt", sample=SAMPLES),
         "results/05.quantification/matrices/featurecounts/featurecounts_gene_counts_matrix.tsv",
         
@@ -150,7 +150,7 @@ rule alignment_only:
 rule quantification_kallisto_only:
     """Run Kallisto quantification only"""
     input:
-        "data/reference/kallisto_index/transcriptome.idx",
+        f"{KALLISTO_INDEX_DIR}/transcriptome.idx",
         expand("results/05.quantification/native/kallisto/per_sample/{sample}/abundance.tsv", sample=SAMPLES),
         "results/05.quantification/matrices/kallisto/kallisto_transcript_counts_matrix.tsv",
         "results/05.quantification/matrices/kallisto/kallisto_transcript_tpm_matrix.tsv"
@@ -158,7 +158,7 @@ rule quantification_kallisto_only:
 rule quantification_salmon_only:
     """Run Salmon quantification only"""
     input:
-        "data/reference/salmon_index",
+        SALMON_INDEX_DIR,
         expand("results/05.quantification/native/salmon/per_sample/{sample}/quant.sf", sample=SAMPLES),
         "results/05.quantification/matrices/salmon/salmon_transcript_counts_matrix.tsv",
         "results/05.quantification/matrices/salmon/salmon_transcript_tpm_matrix.tsv",
@@ -173,8 +173,8 @@ rule consensus_only:
 rule quantification_featurecounts_only:
     """Run featureCounts quantification only"""
     input:
-        "data/reference/genome.featurecounts.gtf",
-        "data/reference/genome.featurecounts.summary.tsv",
+        FEATURECOUNTS_GTF,
+        f"{REFERENCE_DIR}/genome.featurecounts.summary.tsv",
         expand("results/05.quantification/native/featurecounts/per_sample/{sample}/counts.txt", sample=SAMPLES),
         "results/05.quantification/matrices/featurecounts/featurecounts_gene_counts_matrix.tsv"
 

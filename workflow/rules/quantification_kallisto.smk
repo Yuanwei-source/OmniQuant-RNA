@@ -11,7 +11,7 @@ rule kallisto_index:
     input:
         REFERENCE_TRANSCRIPTOME
     output:
-        "data/reference/kallisto_index/transcriptome.idx"
+        f"{KALLISTO_INDEX_DIR}/transcriptome.idx"
     conda:
         "../../envs/quantification.yaml"
     log:
@@ -24,7 +24,7 @@ rule kallisto_quant:
     Quantify transcripts using Kallisto
     """
     input:
-        index="data/reference/kallisto_index/transcriptome.idx",
+        index=f"{KALLISTO_INDEX_DIR}/transcriptome.idx",
         r1=get_analysis_r1,
         r2=get_analysis_r2
     output:

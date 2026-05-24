@@ -1,11 +1,7 @@
 import os
 
 FEATURECOUNTS_CONFIG = config.get("featurecounts", {})
-FEATURECOUNTS_GTF = FEATURECOUNTS_CONFIG.get("normalized_gtf", "data/reference/genome.featurecounts.gtf")
-FEATURECOUNTS_GTF_SUMMARY = FEATURECOUNTS_CONFIG.get(
-    "normalized_gtf_summary",
-    "data/reference/genome.featurecounts.summary.tsv"
-)
+FEATURECOUNTS_GTF_SUMMARY = f"{REFERENCE_DIR}/genome.featurecounts.summary.tsv"
 
 def resolve_featurecounts_attribute(config_value, target_type="gene"):
     if config_value and str(config_value).strip().lower() != "auto":

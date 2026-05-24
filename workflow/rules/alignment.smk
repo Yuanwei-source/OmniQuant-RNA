@@ -12,7 +12,7 @@ rule hisat2_build_index:
     input:
         genome=REFERENCE_GENOME
     output:
-        directory("data/reference/hisat2_index")
+        directory(HISAT2_INDEX_DIR)
     conda:
         "../../envs/alignment.yaml"
     log:
@@ -34,7 +34,7 @@ rule hisat2_align:
     input:
         r1=get_analysis_r1,
         r2=get_analysis_r2,
-        index="data/reference/hisat2_index"
+        index=HISAT2_INDEX_DIR
     output:
         bam="results/04.alignment/hisat2/{sample}.bam",
         bai="results/04.alignment/hisat2/{sample}.bam.bai"
@@ -62,7 +62,7 @@ rule star_build_index:
         genome=REFERENCE_GENOME,
         gtf=REFERENCE_GTF
     output:
-        directory("data/reference/star_index")
+        directory(f"{REFERENCE_DIR}/star_index")
     conda:
         "../../envs/alignment.yaml"
     log:
@@ -91,7 +91,7 @@ rule star_align:
     input:
         r1=get_analysis_r1,
         r2=get_analysis_r2,
-        index="data/reference/star_index"
+        index=f"{REFERENCE_DIR}/star_index"
     output:
         bam="results/04.alignment/star/{sample}.bam",
         bai="results/04.alignment/star/{sample}.bam.bai",

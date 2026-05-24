@@ -12,7 +12,7 @@ rule salmon_index:
         transcriptome=REFERENCE_TRANSCRIPTOME,
         genome=REFERENCE_GENOME
     output:
-        directory("data/reference/salmon_index")
+        directory(SALMON_INDEX_DIR)
     conda:
         "../../envs/quantification.yaml"
     log:
@@ -34,7 +34,7 @@ rule salmon_quant:
     Quantify transcripts using Salmon
     """
     input:
-        index="data/reference/salmon_index",
+        index=SALMON_INDEX_DIR,
         r1=get_analysis_r1,
         r2=get_analysis_r2
     output:
