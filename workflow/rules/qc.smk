@@ -58,8 +58,12 @@ rule quality_trimming_fastp:
         "logs/{sample}_fastp_trimming.log" 
     shell:
         """
+        mkdir -p {params.output_dir} $(dirname {log})
+        tmpdir=$(mktemp -d {params.output_dir}/{wildcards.sample}.fastp.XXXXXX)
+        trap 'rm -rf "$tmpdir"' EXIT
+
         fastp  -i {input.forward_reads} -I {input.reverse_reads} \
-               -o {output.forward_trimmed} -O {output.reverse_trimmed} \
+               -o "$tmpdir/R1.fastq.gz" -O "$tmpdir/R2.fastq.gz" \
                -f {params.trim_front1} -F {params.trim_front2} \
                -t {params.trim_tail1} -T {params.trim_tail2} \
                -w {threads} \
@@ -69,7 +73,13 @@ rule quality_trimming_fastp:
                --cut_tail \
                --length_required {params.min_length} \
                -h {output.report_html} \
-               -j {output.report_json} >> {log} 2>&1\
+               -j {output.report_json} >> {log} 2>&1
+
+        python3 workflow/scripts/normalize_paired_fastq_ids.py \
+               --r1-in "$tmpdir/R1.fastq.gz" \
+               --r2-in "$tmpdir/R2.fastq.gz" \
+               --r1-out {output.forward_trimmed} \
+               --r2-out {output.reverse_trimmed} >> {log} 2>&1
         """ 
 
 rule trimmed_reads_fastqc:

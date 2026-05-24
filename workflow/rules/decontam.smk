@@ -411,7 +411,7 @@ rule decontam_classify_unresolved:
                                 -n {params.names} \\
                                 -i {output.kaiju_out} \\
                                 -o {output.kaiju_lineage} \\
-                                -r superkingdom,phylum,class,order,family,genus,species -p >> {log} 2>&1
+                                -r superkingdom,phylum,class,order,family,genus,species >> {log} 2>&1
 
             kaiju2krona -t {params.nodes} \\
                         -n {params.names} \\
