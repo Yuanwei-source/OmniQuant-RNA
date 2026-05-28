@@ -19,8 +19,8 @@ suppressPackageStartupMessages({
 FDR_THRESHOLD      <- 0.05
 LFC_THRESHOLD      <- 1.0
 P_CLIP             <- 1e-16
-CONTRAST_TREAT     <- "60d"
-CONTRAST_CTRL      <- "1d"
+CONTRAST_TREAT     <- "Wolbachia_infected"
+CONTRAST_CTRL      <- "Wolbachia_free"
 QUANTIFIERS        <- c("featurecounts", "salmon", "stringtie", "kallisto")
 TOP_N_VALUES       <- c(100, 250, 500, 1000)
 FIXED_DIRECTION    <- "up"  # stability calculated within up-regulated genes
@@ -837,7 +837,7 @@ p_dist <- ggplot(plot_df, aes(x = .data$stability, color = .data$method,
   geom_density(alpha = 0.15, linewidth = 0.8) +
   labs(
     title = "Gene-level DE call stability across 9 subsets",
-    subtitle = paste0("Drosophila 60d vs 1d | ",
+    subtitle = paste0("Drosophila Wolbachia-infected vs Wolbachia-free | ",
                       length(universe), " common genes | ",
                       "FDR < ", FDR_THRESHOLD, ", |logFC| ≥ ", LFC_THRESHOLD),
     x = "Stability (fraction of subsets where gene is called DE)",
@@ -845,7 +845,8 @@ p_dist <- ggplot(plot_df, aes(x = .data$stability, color = .data$method,
     color = "Method", fill = "Method"
   ) +
   theme_bw(base_size = 12) +
-  scale_x_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.25))
+  scale_x_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.25)) +
+  coord_cartesian(xlim = c(0.5, 1))
 
 dist_path <- file.path(FIG_DIR, "stability_distribution.png")
 ggsave(dist_path, plot = p_dist, width = 9, height = 6, dpi = 150)

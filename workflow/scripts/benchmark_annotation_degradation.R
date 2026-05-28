@@ -42,6 +42,7 @@ if (requireNamespace("box", quietly = TRUE)) {
 
   aes <- gg$aes
   element_text <- gg$element_text
+  element_blank <- gg$element_blank
   geom_line <- gg$geom_line
   geom_point <- gg$geom_point
   geom_ribbon <- gg$geom_ribbon
@@ -740,7 +741,7 @@ main <- function() {
   output_tsv <- "results/benchmark/annotation_degradation.tsv"
   output_fig <- "results/benchmark/figures/degradation_curve.png"
   n_seeds    <- 5L
-  contrast   <- "60d_vs_1d"
+  contrast   <- "Wolbachia_infected_vs_Wolbachia_free"
   levels_vec <- c(0.0, 0.25, 0.50, 0.75)
 
   # Help message
@@ -1125,7 +1126,7 @@ main <- function() {
       title = "Global Recovery Recall by Degradation Mode",
       subtitle = "Fraction of full-annotation Tier A genes recovered",
       x = "Degradation level (%)",
-      y = "Global recovery recall",
+      y = "Global recall",
       color = "Method",
       fill  = "Method"
     ) +
@@ -1194,7 +1195,7 @@ main <- function() {
       title = "Precision by Degradation Mode",
       subtitle = "Fraction of detected DEGs that are in the reference set",
       x = "Degradation level (%)",
-      y = "Precision",
+      y = "Reference-consensus precision",
       color = "Method",
       fill  = "Method"
     ) +
@@ -1248,7 +1249,7 @@ main <- function() {
     geom_line(linewidth = 0.9) + geom_point(size = 1.8) +
     facet_wrap(~ mode_label, ncol = 5) +
     scale_color_manual(values = method_colors) +
-    labs(title = "C: Precision", x = "Degradation (%)", y = "Precision") +
+    labs(title = "C: Precision", x = "Degradation (%)", y = "Reference-consensus precision") +
     theme_bw(base_size = 11) +
     ggplot2::theme(legend.position = "bottom", strip.text = element_text(size = 9, face = "bold"))
 
