@@ -615,7 +615,7 @@ rule decontam_microbe_clues_tables:
                 total_pairs=$((rescued_host + rescued_ercc + flagged_uncertain + removed_tech + removed_nontarget))
                 non_host_pairs=$((total_pairs - rescued_host - rescued_ercc))
                 if [ "$total_pairs" -gt 0 ]; then
-                    non_host_fraction=$(awk "BEGIN {{printf \"%.6f\", $non_host_pairs/$total_pairs}}")
+                    non_host_fraction=$(awk -v n=$non_host_pairs -v t=$total_pairs 'BEGIN {{printf "%.6f", n/t}}')
                 else
                     non_host_fraction="0.000000"
                 fi
@@ -662,12 +662,12 @@ rule decontam_microbe_clues_tables:
                 cat=$(echo "$row" | cut -d: -f1)
                 cnt=$(echo "$row" | cut -d: -f2)
                 if [ "$total_reads" -gt 0 ]; then
-                    ft=$(awk "BEGIN {{printf \"%.6f\", $cnt/$total_reads}}")
+                    ft=$(awk -v c=$cnt -v t=$total_reads 'BEGIN {{printf "%.6f", c/t}}')
                 else
                     ft="0.000000"
                 fi
                 if [ "$classified" -gt 0 ]; then
-                    fnh=$(awk "BEGIN {{printf \"%.6f\", $cnt/$classified}}")
+                    fnh=$(awk -v c=$cnt -v t=$classified 'BEGIN {{printf "%.6f", c/t}}')
                 else
                     fnh="0.000000"
                 fi

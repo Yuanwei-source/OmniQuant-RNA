@@ -36,11 +36,11 @@ rule benchmark_degradation:
         tsv = "results/benchmark/annotation_degradation.tsv",
         fig = "results/benchmark/figures/degradation_curve_combined.png"
     params:
-        gff = os.path.join(BENCH_REFERENCE_DIR, "Drosophila_melanogaster.BDGP6.54.115.chr.gff3"),
-        fc_dea = "results/06.differential_expression/featurecounts/deseq2.60d_vs_1d.csv",
-        st_dea = "results/06.differential_expression/stringtie/deseq2.60d_vs_1d.csv",
-        sa_dea = "results/06.differential_expression/salmon/deseq2.60d_vs_1d.csv",
-        ka_dea = "results/06.differential_expression/kallisto/deseq2.60d_vs_1d.csv",
+        gff = os.path.join(REFERENCE_DIR, "annotation.gff3"),
+        fc_dea = "results/06.differential_expression/featurecounts/deseq2.Wolbachia_infected_vs_Wolbachia_free.csv",
+        st_dea = "results/06.differential_expression/stringtie/deseq2.Wolbachia_infected_vs_Wolbachia_free.csv",
+        sa_dea = "results/06.differential_expression/salmon/deseq2.Wolbachia_infected_vs_Wolbachia_free.csv",
+        ka_dea = "results/06.differential_expression/kallisto/deseq2.Wolbachia_infected_vs_Wolbachia_free.csv",
         fc_counts = "results/05.quantification/matrices/featurecounts/featurecounts_gene_counts_matrix.tsv",
         levels = "0,0.25,0.50,0.75"
     conda:
@@ -61,7 +61,8 @@ rule benchmark_degradation:
             --output-tsv {output.tsv} \
             --output-figure {output.fig} \
             --seeds 5 \
-            --levels {params.levels}
+            --levels {params.levels} \
+            --contrast Wolbachia_infected_vs_Wolbachia_free
         """
 
 # ── Rule: run all benchmarks ───────────────────────────────────────────────────

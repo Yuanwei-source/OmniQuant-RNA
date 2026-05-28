@@ -5,10 +5,10 @@ rule annotation_format_conversion:
     input:
         original=REFERENCE_SOURCE_ANNOTATION
     output:
-        generated=(REFERENCE_GTF if REFERENCE_SOURCE_FORMAT == "gff3" else REFERENCE_GFF3),
+        generated=(REFERENCE_GTF if REFERENCE_SOURCE_FORMAT == "gff3" else REFERENCE_ANNOTATION),
         converted = f"{REFERENCE_DIR}/annotation_conversion_complete.flag"
     run:
-        input_format = detect_annotation_format(input.original)
+        input_format = REFERENCE_SOURCE_FORMAT
 
         if input_format == "gff3":
             shell("gffread -T {input.original} -o {output.generated}")
@@ -19,7 +19,7 @@ rule annotation_format_conversion:
             f.write(f"Input annotation: {input.original}\n")
             f.write(f"Detected format: {input_format}\n")
             f.write(f"Canonical GTF: {REFERENCE_GTF}\n")
-            f.write(f"Canonical GFF3: {REFERENCE_GFF3}\n")
+            f.write(f"Canonical GFF3: {REFERENCE_ANNOTATION}\n")
             f.write(f"Transcriptome target: {REFERENCE_TRANSCRIPTOME}\n")
 
 rule extract_transcriptome:
