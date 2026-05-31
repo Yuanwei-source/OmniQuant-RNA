@@ -131,7 +131,7 @@ Under this stress condition, single quantifiers misclassified nearly half of the
 
 To independently validate the agreement between the pipeline's differential expression output and an orthogonal experimental standard, we applied the pipeline to the SEQC/MAQC-III benchmark dataset (AGR sequencing site, Illumina HiSeq, UHRR vs. Human Brain Reference RNA), which includes TaqMan qPCR measurements for 981 genes. Differential expression was performed with DESeq2 on the summarized RNA-seq counts. The consensus pipeline's log2 fold-changes correlated strongly with TaqMan-derived logFC (Spearman ρ = 0.904, Pearson r = 0.924), with 87.9% directional concordance overall and 90.5% among genes meeting FDR < 0.05 (n = 919). The mean absolute error was 0.802 log2FC units (RMSE = 1.473). This validation confirms the agreement between the count-based differential expression workflow and an orthogonal experimental standard. We note that direct benchmarking of the full multi-quantifier consensus engine against the SEQC TaqMan measurements would require re-processing the raw FASTQ data through all four quantifiers (featureCounts, Salmon, Kallisto, StringTie), which was beyond the scope of the current study.
 
-![Figure S: Clean vs isoform-switching simulation benchmarks — consensus Tier A reduces false positives under quantifier discordance](../../paper_outputs/figures_main/fig6_simulation_benchmarks.pdf)
+![Figure S: Clean vs isoform-switching simulation benchmarks — consensus Tier A reduces false positives under quantifier discordance](../../paper_outputs/figures_main/fig6_simulation_benchmarks.png)
 
 ### Ablation Quantifies Per-Module Contribution
 
@@ -214,7 +214,7 @@ These results demonstrate that the consensus engine's dual-gatekeeping framework
 
 These combined results are summarized in Figure 6.
 
-![Figure 6: Functional coherence — Bombyx testis-ovary GO/KEGG enrichment, GSEA, ribosome validation, and Drosophila cross-species control](../../paper_outputs/figures_main/fig7_functional_coherence.pdf)
+![Figure 6: Functional coherence — Bombyx testis-ovary GO/KEGG enrichment, GSEA, ribosome validation, and Drosophila cross-species control](../../paper_outputs/figures_main/fig7_functional_coherence.png)
 
 ### Non-Model Application: *Epicauta impressicornis* Diapause Transcriptome
 

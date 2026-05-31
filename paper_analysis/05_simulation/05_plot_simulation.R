@@ -84,4 +84,6 @@ combined <- pA + pB + pC + pD + pE + plot_layout(design=design, guides="collect"
     theme=theme(plot.title=element_text(size=14,face="bold")))
 
 ggsave(file.path(FIG_DIR, "figure_simulation_benchmarks.pdf"), combined, width=14, height=10)
+ggsave(file.path(FIG_DIR, "figure_simulation_benchmarks.png"), combined, width=14, height=10, dpi=150)
 cat(sprintf("Saved: %s/figure_simulation_benchmarks.pdf\n", FIG_DIR))
+cat(sprintf("Saved: %s/figure_simulation_benchmarks.png\n", FIG_DIR))

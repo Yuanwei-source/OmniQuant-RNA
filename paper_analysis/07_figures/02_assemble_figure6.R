@@ -110,5 +110,12 @@ pdf(OUTPUT, width = 12, height = 16)
 print(figure6)
 dev.off()
 
+# Also save PNG for markdown/inline viewing
+png_output <- sub("\\.pdf$", ".png", OUTPUT)
+png(png_output, width = 12, height = 16, units = "in", res = 150)
+print(figure6)
+dev.off()
+message(sprintf("Saved PNG: %s", png_output))
+
 message("=== Figure 6 reassembly COMPLETE ===")
 message(sprintf("  Output: %s", OUTPUT))
