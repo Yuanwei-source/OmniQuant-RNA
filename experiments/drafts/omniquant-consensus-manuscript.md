@@ -78,6 +78,8 @@ All benchmarks were conducted on *Drosophila melanogaster* (BDGP6.54 reference) 
 
 **Non-model case study.** The pipeline was applied to a publicly available *Bombyx mori* (silkworm, p50T strain, GCF_030269925.1) dataset comparing testis (n = 3) vs. ovary (n = 3) from 5th-instar larvae [DRA008737]. Decontamination evaluation was performed as described above using Kaiju with the nr_euk protein database.
 
+![Figure 1: OmniQuant-RNA pipeline architecture](../../paper_outputs/figures_main/fig1_workflow_schematic.png)
+
 ---
 
 ## Results
@@ -95,6 +97,8 @@ Figure 2 presents F1 scores across the four degradation modes at 50% gene loss, 
 **Under transcript-level degradation** (isoform loss), consensus achieved perfect scores (F1 = 1.000), while featureCounts F1 was 0.771. This result is consistent with OmniQuant's gene-level consensus being robust to incomplete isoform annotation, since the gene universe is unaffected by transcript-level perturbations.
 
 Across all four degradation modes, consensus F1 exceeded that of the best single quantifier (Table 2, Figure 3). Because the reference-condition DEGs were defined using the consensus method itself (see Methods), the concordance metrics in Table 2 are not independent false-positive counts; they measure agreement between the degraded-annotation consensus and the full-annotation consensus. The degradation simulations partially escape this circularity since degradation introduces conditions that affect quantifiers differently, and the consistent trend — consensus showing higher agreement with the reference than any single quantifier across all modes and intensities — supports the interpretation that multi-quantifier consensus is more robust to annotation loss than any individual method. The F1 advantage ranged from +0.046 (random 50% dropout) to +0.229 (transcript-level 50% degradation).
+
+![Figure 2: Consensus vs single-quantifier F1 scores under four annotation degradation modes at 50% gene loss](../../paper_outputs/figures_main/fig2_annotation_degradation.png)
 
 | Degradation Mode (50%) | Consensus F1 | featureCounts F1 | ΔF1 | Cons. Global Recall | FC Global Recall | Cons. Concordance | FC Concordance |
 |------------------------|:-----------:|:----------------:|:---:|:-------------------:|:----------------:|:--------------:|:------------:|
@@ -127,6 +131,8 @@ Under this stress condition, single quantifiers misclassified nearly half of the
 
 To independently validate the agreement between the pipeline's differential expression output and an orthogonal experimental standard, we applied the pipeline to the SEQC/MAQC-III benchmark dataset (AGR sequencing site, Illumina HiSeq, UHRR vs. Human Brain Reference RNA), which includes TaqMan qPCR measurements for 981 genes. Differential expression was performed with DESeq2 on the summarized RNA-seq counts. The consensus pipeline's log2 fold-changes correlated strongly with TaqMan-derived logFC (Spearman ρ = 0.904, Pearson r = 0.924), with 87.9% directional concordance overall and 90.5% among genes meeting FDR < 0.05 (n = 919). The mean absolute error was 0.802 log2FC units (RMSE = 1.473). This validation confirms the agreement between the count-based differential expression workflow and an orthogonal experimental standard. We note that direct benchmarking of the full multi-quantifier consensus engine against the SEQC TaqMan measurements would require re-processing the raw FASTQ data through all four quantifiers (featureCounts, Salmon, Kallisto, StringTie), which was beyond the scope of the current study.
 
+![Figure S: Clean vs isoform-switching simulation benchmarks — consensus Tier A reduces false positives under quantifier discordance](../../paper_outputs/figures_main/fig6_simulation_benchmarks.pdf)
+
 ### Ablation Quantifies Per-Module Contribution
 
 Systematic module removal (Table 3) revealed that the consensus engine is the primary driver of DEG set refinement, reducing the DEG count from 5,995 to 4,740 (−20.9%) at a negligible stability cost (−0.41%, from 0.7856 to 0.7824). The gene namespace module achieved 100% ID recovery on the well-annotated *Drosophila* reference, confirming that cross-quantifier harmonization introduces no information loss. The decontamination module added host-read filtering (65.23% host retention) without altering the DEG set composition, as expected since its primary effect is on input read quality rather than downstream statistical thresholds.
@@ -139,6 +145,8 @@ Systematic module removal (Table 3) revealed that the consensus engine is the pr
 | + Decontam (full) | 4,740 | 4,740 | 0.7824 | 100% | 65.23% |
 
 *Table 3. Ablation study results. Modules are added cumulatively from top to bottom.*
+
+![Figure 4: Ablation analysis — per-module contribution to DEG set refinement and gate failure overlap](../../paper_outputs/figures_main/fig4_ablation_gate_contribution.png)
 
 ### Comparison with Alternative Consensus Strategies
 
@@ -172,11 +180,15 @@ Tier B gate sensitivity analysis (Table 4) revealed that all 1,156 Tier B genes 
 
 The exhaustive 9-subset analysis revealed that consensus Tier A stability (0.782) was comparable to the best single quantifier (featureCounts: 0.786) despite calling 20% fewer genes (4,294 vs. 5,353 average per subset). Salmon (0.782), Kallisto (0.782), and StringTie (0.768) showed similar or slightly lower stability. Top-1000 Jaccard indices (consensus: 0.782; featureCounts: 0.774; Kallisto: 0.795) indicated broad agreement on the highest-confidence gene sets across methods.
 
+![Figure 5: Subsampling stability and leave-one-out perturbation analysis](../../paper_outputs/figures_main/fig5_stability_analysis.png)
+
 ### Non-Model Application: *Bombyx mori* Case Study
 
 Application to a *Bombyx mori* (silkworm, p50T strain, GCF_030269925.1) testis vs. ovary dataset (DRA008737, n = 3 per group, 18,210-gene universe) showed the pipeline's end-to-end applicability to a non-Drosophilid insect. With decontamination enabled via Kaiju (nr_euk database), the consensus engine identified 4,239 Tier A genes (23.3% of the gene universe), 724 Tier B, and 507 Tier C, with 7 directional conflicts. The gene namespace module achieved full ID resolution across quantifiers despite the non-standard Ensembl Metazoa identifiers in the silkworm annotation.
 
 The paired decontamination on/off comparison validated cross-species robustness of the module's design. Expression estimates were negligibly affected (logFC Pearson r = 0.992), and 95.85% of Tier A genes identified with decontamination enabled remained Tier A without it (Tier A Jaccard = 0.830). Among all consensus DEGs (Tier A + B, n = 4,963 with decontamination), 96.3% were recovered in the decontamination-disabled run. The decontamination-disabled run identified 729 additional DEGs not present with decontamination enabled, compared to only 182 DEGs unique to the decontamination-enabled run. This asymmetric pattern was consistent with the *Drosophila* Wolbachia benchmark (706 vs. 235, 3.0×), indicating that the primary effect of decontamination is the removal of borderline candidate DEGs whose signal is inflated by microbial reads. Directional concordance among shared DEGs was 100%. The asymmetry ratio was larger in *Bombyx* than in *Drosophila* (4.0× vs. 3.0×), and the relative DEG inflation was greater (+11.0% vs. +6.0%), suggesting that the 18,210-gene silkworm universe is more sensitive to library-size distortion by trace microbial reads despite the cleaner laboratory rearing conditions.
+
+![Figure 3: Decontamination perturbation characterization — ON/OFF comparison across three species](../../paper_outputs/figures_main/fig3_decontam_p1_characterization.png)
 
 ### Functional Coherence of Consensus Tier A Genes
 
@@ -201,6 +213,8 @@ Quantitative comparison with the DR-enriched GO terms independently reported by 
 These results demonstrate that the consensus engine's dual-gatekeeping framework (RRA + CCT), combined with directional consistency and effect-size stability filters, preferentially retains genes participating in coordinated biological programs while filtering out candidates whose apparent differential expression lacks functional coherence. The finding that Tier C genes, which represent the boundary between "detected" and "filtered," show no pathway-level organization provides orthogonal validation that the consensus tier thresholds are neither arbitrary nor overly conservative. Full enrichment results are available in Supplementary Tables SX–SZ.
 
 These combined results are summarized in Figure 6.
+
+![Figure 6: Functional coherence — Bombyx testis-ovary GO/KEGG enrichment, GSEA, ribosome validation, and Drosophila cross-species control](../../paper_outputs/figures_main/fig7_functional_coherence.pdf)
 
 ### Non-Model Application: *Epicauta impressicornis* Diapause Transcriptome
 
@@ -318,6 +332,16 @@ OmniQuant-RNA source code, Conda environment definitions, Snakemake rules, and a
 25. Bouniol-Baly, C., Hamraoui, L., Guibert, J., & Beaujean, N. (1999). Differential transcriptional activity associated with chromatin configuration in fully grown mouse germinal vesicle oocytes. *Biology of Reproduction*, 60(3), 580–587.
 
 26. Susor, A., Jansova, D., Anger, M., & Kubelka, M. (2015). Temporal and spatial regulation of translation in the mammalian oocyte. *Nature Communications*, 6, 6478.
+
+---
+
+## Supplementary Figures
+
+![Figure S1: Detectable recall across annotation degradation levels](../../paper_outputs/figures_supp/figS1_degradation_detectable.png)
+
+![Figure S2: Reference-condition concordance (precision) across degradation modes](../../paper_outputs/figures_supp/figS2_degradation_precision.png)
+
+![Figure S3: Stability yield curve — subsampling Jaccard vs top-N ranking](../../paper_outputs/figures_supp/figS3_stability_yield_curve.png)
 
 ---
 
