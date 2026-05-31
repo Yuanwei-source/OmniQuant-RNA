@@ -1,0 +1,15 @@
+name: enrichment
+channels:
+  - https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge
+  - https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/bioconda
+dependencies:
+  - r-base>=4.2
+  - bioconductor-clusterprofiler
+  - bioconductor-enrichplot
+  - bioconductor-go.db
+  - bioconductor-org.Hs.eg.db
+  - r-readr
+  - r-dplyr
+  - r-ggplot2
+  - r-tidyr
+  - r-stringr

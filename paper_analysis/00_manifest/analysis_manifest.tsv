@@ -1,0 +1,17 @@
+claim_id	claim	script	input_data	output	status
+C01	Consensus precision 0.985-1.000 under annotation degradation	01_core_benchmark/01_annotation_degradation.py	benchmark_results/drosophila_wolbachia/analysis/annotation_degradation/	fig2, table2	frozen
+C02	Decontam preserves 96.5% Tier A, OFF-only asymmetry 3.0x/4.0x/2.3x	02_decontam_p1/01_onoff_comparison.py	benchmark_results/*/runs/*/07.consensus_expression/	table_decontam	frozen
+C03	OFF-only genes are low-expression, low-significance, low cross-method validation	02_decontam_p1/02_off_only_characterization.py	benchmark_results/*/runs/*/consensus_results.tsv	fig3, table_off_only	frozen
+C04	RRA is primary gate; CCT adds 0 independent filtering in well-annotated species	03_ablation/01_gate_failure_overlap.py	benchmark_results/*/consensus_results.tsv	fig4, table_ablation	frozen
+C05	Tier thresholds are data-driven, not arbitrary	03_ablation/02_threshold_sweep.py	benchmark_results/drosophila_wolbachia/consensus_results.tsv	fig4, table_threshold	frozen
+C06	Tier A stable under workflow perturbation (ON/OFF Jaccard 0.88/0.83/0.66)	04_stability/01_summarize_stability.py	benchmark_results/*/comparisons/	fig5	frozen
+C07	Tier A stable under subsampling (Jaccard 0.856 vs 0.851 best single)	04_stability/01_summarize_stability.py	benchmark_results/drosophila_wolbachia/analysis/subsampling_stability/	fig5, table_loo	frozen
+C08	Clean read-level: Fisher matches best single F1 (0.732), Tier A precision 0.970	05_simulation/02_clean_read_eval.R	results/polyester_stress/clean_5rep/summary/summary.tsv	fig6A, table_clean	frozen
+C09	Stress test: Tier A reduces iso-switch FP from 48% to 9.4%, precision +16.8pp	05_simulation/03_stress_read_eval.R	results/polyester_stress/stress_5rep/summary/summary.tsv	fig6B-E, table_stress	frozen
+C10	RRA null calibration: FPR=8.2% under null, CCT complement eliminates excess	05_simulation/04_null_calibration.R	bombyx consensus_results.tsv	fig_calibration	frozen
+C11	Bombyx Tier A up enriched for cilium/flagella (FDR 1.5e-11)	06_functional_coherence/01_bombyx_ora.R	bombyx consensus + NCBI gene2go + KEGG	fig7, table_enrichment	frozen
+C12	Bombyx GSEA confirms directional coherence (cilium NES+2.94, translation NES-4.18)	06_functional_coherence/02_bombyx_gsea.R	bombyx consensus + combined GO	fig7, table_gsea	frozen
+C13	Ribosome 60/60 genes higher in ovary (p=8.36e-12)	06_functional_coherence/03_ribosome_validation.R	bombyx consensus + normalized_counts	fig7_ribosome	frozen
+C14	Drosophila near-Tier-C: 57 vs 2 vs 0 terms (TierA vs near-TierC vs random)	06_functional_coherence/04_drosophila_coherence.R	drosophila consensus + org.Dm.eg.db	fig7, table_near_tier	frozen
+C15	SEQC external validation: Spearman rho=0.904 with TaqMan (n=981)	05_simulation/01_clean_count_benchmark.R	seqc Bioconductor data	table_seqc	frozen
+C16	Fisher/Stouffer vs CCT: CCT 5,266 vs Fisher 8,814 sig genes (40% fewer FP)	05_simulation/01_clean_count_benchmark.R	bombyx consensus pvalues	table_fisher	frozen
