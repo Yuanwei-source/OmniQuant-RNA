@@ -18,6 +18,8 @@ suppressPackageStartupMessages({
   library(stringr)
 })
 
+source("../theme_nature.R")
+
 # ── Configuration ────────────────────────────────────────────────────────────
 
 DATA_DIR   <- "experiments/bombyx_enrichment/data"
@@ -180,7 +182,6 @@ plot_go_dotplot <- function(results_list, title, outfile, top_n = 15) {
   }))
   
   p <- dotplot(valid[[1]], showCategory = top_n, title = title) +
-    theme_minimal(base_size = 11) +
     theme(
       plot.title = element_text(size = 13, face = "bold"),
       axis.text.y = element_text(size = 9)

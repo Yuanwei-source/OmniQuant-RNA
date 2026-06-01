@@ -25,6 +25,8 @@ suppressPackageStartupMessages({
   library(gridExtra)
 })
 
+source("../theme_nature.R")
+
 # ── Paths ─────────────────────────────────────────────────────────────────────
 PROJECT  <- Sys.getenv("PROJECT_ROOT", normalizePath("."))
 BOMBYX_FIG  <- file.path(PROJECT, "experiments/bombyx_enrichment/results/figures")
@@ -43,7 +45,7 @@ dir.create(BENCH_FIG, recursive = TRUE, showWarnings = FALSE)
 dir.create(EXP_FIG,  recursive = TRUE, showWarnings = FALSE)
 
 # ── Global theme ──────────────────────────────────────────────────────────────
-theme_pub <- theme_minimal(base_size = 9, base_family = "") +
+theme_pub <- theme_nature(base_size = 6.5, base_family = "Arial") +
   theme(
     axis.line         = element_line(linewidth = 0.3, colour = "black"),
     axis.ticks        = element_line(linewidth = 0.3, colour = "black"),

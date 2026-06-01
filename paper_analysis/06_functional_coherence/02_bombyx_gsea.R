@@ -21,6 +21,8 @@ suppressPackageStartupMessages({
   library(tidyr)
 })
 
+source("../theme_nature.R")
+
 # ═════════════════════════════════════════════════════════════════════════════
 # 0. Configuration
 # ═════════════════════════════════════════════════════════════════════════════
@@ -264,8 +266,7 @@ if (nrow(gsea_bp) > 0) {
   pdf(file.path(FIG_DIR, "gsea_bp_ridgeplot.pdf"), width = 12, height = 16)
   print(
     ridgeplot(gsea_bp, showCategory = 20, fill = "p.adjust") +
-      labs(title = "GSEA: GO Biological Process — Testis vs Ovary") +
-      theme_minimal(base_size = 11)
+      labs(title = "GSEA: GO Biological Process — Testis vs Ovary")
   )
   dev.off()
   message("  Saved gsea_bp_ridgeplot.pdf")

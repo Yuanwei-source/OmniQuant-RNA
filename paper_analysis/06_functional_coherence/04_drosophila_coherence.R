@@ -13,6 +13,8 @@ suppressPackageStartupMessages({
   library(GO.db)
 })
 
+source("../theme_nature.R")
+
 # ── Paths ──────────────────────────────────────────────────────────────
 BASE_DIR    <- Sys.getenv("PROJECT_ROOT", normalizePath("."))
 EXP_DIR     <- file.path(BASE_DIR, "experiments/drosophila_enrichment")
@@ -322,7 +324,6 @@ p_null <- ggplot(hist_data, aes(x = sig_terms)) +
     caption  = paste0("Vertical lines: observed values | Median: ",
                       null_median)
   ) +
-  theme_bw(base_size = 12) +
   theme(plot.title = element_text(face = "bold"))
 
 ggsave(file.path(FIGURES_DIR, "random_control_null.pdf"),
@@ -386,7 +387,6 @@ p_comp <- ggplot(comp_long, aes(x = set, y = value, fill = set)) +
                           length(tier_a_annot), length(near_tc_annot), length(off_only_annot)),
        x        = NULL,
        y        = NULL) +
-  theme_bw(base_size = 12) +
   theme(legend.position = "none",
         plot.title = element_text(face = "bold"),
         strip.text = element_text(face = "bold"))
@@ -438,7 +438,6 @@ if (!is.null(top_all) && nrow(top_all) > 0) {
          x        = "GeneRatio",
          y        = NULL,
          size     = "Gene Count") +
-    theme_bw(base_size = 11) +
     theme(plot.title = element_text(face = "bold"),
           strip.text = element_text(face = "bold"),
           axis.text.y = element_text(size = 8))

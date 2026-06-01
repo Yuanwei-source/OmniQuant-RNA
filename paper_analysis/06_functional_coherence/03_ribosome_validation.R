@@ -20,6 +20,8 @@ suppressPackageStartupMessages({
   library(tidyr)
 })
 
+source("../theme_nature.R")
+
 # ============================================================
 # 0. 文件路径配置
 # ============================================================
@@ -277,29 +279,20 @@ p_violin <- ggplot(violin_data, aes(x = tissue, y = expression, fill = tissue)) 
     title = "KEGG Ribosome Pathway Genes",
     subtitle = sprintf("Bombyx mori Testis vs Ovary  |  %d genes  |  %s",
                        n_genes, p_label)
-  ) +
-  theme_minimal(base_size = 13) +
-  theme(
-    plot.title = element_text(face = "bold", size = 14),
-    plot.subtitle = element_text(size = 10),
-    axis.text.x = element_text(size = 13, face = "bold"),
-    panel.grid.minor = element_blank()
   )
 
-ggsave(file.path(fig_dir, "ribosome_expression_violin.pdf"),
-       p_violin, width = 6, height = 5.5, device = "pdf")
-cat("   已保存: ribosome_expression_violin.pdf\n")
+save_pub_r(p_violin, file.path(fig_dir, "ribosome_expression_violin"),
+  width_mm=80, height_mm=75)
+cat("   已保存: ribosome_expression_violin\n")
 
 # ----- 8b. 配对点图（基因连线） -----
 
 p_paired <- ggplot(gene_wide) +
-  # 连线
   geom_segment(
     aes(x = "Testis", xend = "Ovary",
         y = mean_Testis, yend = mean_Ovary),
     color = "grey75", linewidth = 0.3, alpha = 0.6
   ) +
-  # 点
   geom_point(aes(x = "Testis", y = mean_Testis),
              color = tissue_colors["Testis"], size = 1.2, alpha = 0.7) +
   geom_point(aes(x = "Ovary", y = mean_Ovary),
@@ -310,18 +303,11 @@ p_paired <- ggplot(gene_wide) +
     title = "KEGG Ribosome Pathway: Paired Expression",
     subtitle = sprintf("Each line = one gene  |  %d genes  |  %.0f%% higher in ovary",
                        n_genes, pct_higher_ovary)
-  ) +
-  theme_minimal(base_size = 13) +
-  theme(
-    plot.title = element_text(face = "bold", size = 14),
-    plot.subtitle = element_text(size = 10),
-    axis.text.x = element_text(size = 13, face = "bold"),
-    panel.grid.minor = element_blank()
   )
 
-ggsave(file.path(fig_dir, "ribosome_expression_paired.pdf"),
-       p_paired, width = 5.5, height = 5.5, device = "pdf")
-cat("   已保存: ribosome_expression_paired.pdf\n")
+save_pub_r(p_paired, file.path(fig_dir, "ribosome_expression_paired"),
+  width_mm=80, height_mm=75)
+cat("   已保存: ribosome_expression_paired\n")
 
 # ============================================================
 # 9. 保存数据表
