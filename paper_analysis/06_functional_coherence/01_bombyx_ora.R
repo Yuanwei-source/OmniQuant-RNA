@@ -18,7 +18,7 @@ suppressPackageStartupMessages({
   library(stringr)
 })
 
-source("../theme_nature.R")
+source("paper_analysis/theme_nature.R")
 
 # ── Configuration ────────────────────────────────────────────────────────────
 

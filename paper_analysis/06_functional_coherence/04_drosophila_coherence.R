@@ -13,7 +13,7 @@ suppressPackageStartupMessages({
   library(GO.db)
 })
 
-source("../theme_nature.R")
+source("paper_analysis/theme_nature.R")
 
 # ── Paths ──────────────────────────────────────────────────────────────
 BASE_DIR    <- Sys.getenv("PROJECT_ROOT", normalizePath("."))

@@ -4,7 +4,7 @@ suppressPackageStartupMessages({
   library(ggplot2); library(dplyr); library(readr); library(tidyr); library(patchwork)
 })
 
-source("../theme_nature.R")
+source("paper_analysis/theme_nature.R")
 
 CLEAN <- "experiments/bombyx_enrichment/results/polyester_stress/clean_5rep/summary/summary.tsv"
 STRESS <- "experiments/bombyx_enrichment/results/polyester_stress/stress_5rep/summary/summary.tsv"

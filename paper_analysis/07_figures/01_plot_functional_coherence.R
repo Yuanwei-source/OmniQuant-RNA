@@ -25,7 +25,7 @@ suppressPackageStartupMessages({
   library(gridExtra)
 })
 
-source("../theme_nature.R")
+source("paper_analysis/theme_nature.R")
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 PROJECT  <- Sys.getenv("PROJECT_ROOT", normalizePath("."))

@@ -20,7 +20,7 @@ suppressPackageStartupMessages({
   library(tidyr)
 })
 
-source("../theme_nature.R")
+source("paper_analysis/theme_nature.R")
 
 # ============================================================
 # 0. 文件路径配置

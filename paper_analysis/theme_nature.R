@@ -40,7 +40,7 @@ col_tierb      <- "#377EB8"
 col_tierc      <- "#4DAF4A"
 
 # ── Nature theme ──────────────────────────────────────────────────────────────
-theme_nature <- function(base_size = 6.5, base_family = "Arial") {
+theme_nature <- function(base_size = 6.5, base_family = "") {
   theme_classic(base_size = base_size, base_family = base_family) +
     theme(
       axis.line        = element_line(linewidth = 0.35, colour = "black"),
@@ -76,23 +76,31 @@ save_pub_r <- function(plot, filename, width_mm = 183, height_mm = 120, dpi = 60
   }
 
   # PDF (cairo, editable TrueType)
-  grDevices::cairo_pdf(paste0(filename, ".pdf"), width = w, height = h, family = "Arial")
+  grDevices::cairo_pdf(paste0(filename, ".pdf"), width = w, height = h, family = "Helvetica")
   print(plot)
   dev.off()
 
   # High-DPI TIFF (raster, for submission)
-  if (requireNamespace("ragg", quietly = TRUE)) {
+  has_ragg <- requireNamespace("ragg", quietly = TRUE)
+  if (has_ragg) {
     ragg::agg_tiff(paste0(filename, ".tiff"), width = w, height = h,
                     units = "in", res = dpi)
     print(plot)
     dev.off()
   }
 
-  # Convenience PNG for quick preview
-  ragg::agg_png(paste0(filename, ".png"), width = w, height = h,
-                 units = "in", res = 150)
-  print(plot)
-  dev.off()
+  # PNG for quick preview
+  if (has_ragg) {
+    ragg::agg_png(paste0(filename, ".png"), width = w, height = h,
+                   units = "in", res = 150)
+    print(plot)
+    dev.off()
+  } else {
+    grDevices::png(paste0(filename, ".png"), width = w, height = h,
+                    units = "in", res = 150)
+    print(plot)
+    dev.off()
+  }
 
   message(sprintf("  Exported: %s.{svg,pdf,tiff,png}", filename))
 }
