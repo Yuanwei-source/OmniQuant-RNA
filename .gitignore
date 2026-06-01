@@ -55,3 +55,6 @@ results/
 logs/
 data/fastq/
 data/reference/
+
+# Benchmarks (separate repo: OmniQuant-RNA-benchmarks)
+benchmarks/
