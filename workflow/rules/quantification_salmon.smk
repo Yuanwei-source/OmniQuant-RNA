@@ -77,7 +77,7 @@ rule aggregate_salmon_summary:
         "logs/salmon/aggregate_summary.log"
     shell:
         """
-        python3 workflow/scripts/aggregate_salmon.py \
+        python3 {workflow.basedir}/workflow/scripts/aggregate_salmon.py \
             --input-dir {params.input_dir} \
             --samples {params.samples} \
             --output-transcript-counts {output.transcript_counts} \

@@ -75,7 +75,7 @@ rule quality_trimming_fastp:
                -h {output.report_html} \
                -j {output.report_json} >> {log} 2>&1
 
-        python3 workflow/scripts/normalize_paired_fastq_ids.py \
+        python3 {workflow.basedir}/workflow/scripts/normalize_paired_fastq_ids.py \
                --r1-in "$tmpdir/R1.fastq.gz" \
                --r2-in "$tmpdir/R2.fastq.gz" \
                --r1-out {output.forward_trimmed} \

@@ -51,7 +51,7 @@ rule benchmark_degradation:
         "logs/benchmark/degradation.log"
     shell:
         """
-        Rscript workflow/scripts/benchmark_annotation_degradation.R \
+        Rscript {workflow.basedir}/workflow/scripts/benchmark_annotation_degradation.R \
             --gff {params.gff} \
             --featurecounts-dea {params.fc_dea} \
             --stringtie-dea {params.st_dea} \

@@ -33,7 +33,7 @@ rule normalize_featurecounts_annotation:
         "logs/featurecounts/normalize_annotation.log"
     shell:
         """
-        python3 workflow/scripts/normalize_featurecounts_gtf.py \
+        python3 {workflow.basedir}/workflow/scripts/normalize_featurecounts_gtf.py \
             --input {input.gtf} \
             --output {output.gtf} \
             --summary {output.summary} \
@@ -165,7 +165,7 @@ rule aggregate_featurecounts_summary:
         "logs/featurecounts/aggregate_summary.log"
     shell:
         """
-        python3 workflow/scripts/aggregate_featurecounts.py \
+        python3 {workflow.basedir}/workflow/scripts/aggregate_featurecounts.py \
             --input-dir {params.input_dir} \
             --samples {params.samples} \
             --output-counts {output.counts} 2> {log}

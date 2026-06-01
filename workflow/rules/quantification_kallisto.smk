@@ -69,7 +69,7 @@ rule aggregate_kallisto_summary:
         "logs/kallisto/aggregate_summary.log"
     shell:
         """
-        python3 workflow/scripts/aggregate_kallisto.py \
+        python3 {workflow.basedir}/workflow/scripts/aggregate_kallisto.py \
             --input-dir {params.input_dir} \
             --samples {params.samples} \
             --output-counts {output.counts} \
